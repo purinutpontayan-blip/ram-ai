@@ -811,7 +811,8 @@
   </div>
 
   <script>
-    const API_BASE = window.location.hostname ? `http://${window.location.hostname}:3333` : 'http://localhost:3333';
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const API_BASE = isLocal ? `http://${window.location.hostname}:3333` : '';
     const messages = document.querySelector('#messages'),
           prompt = document.querySelector('#prompt'),
           history = document.querySelector('#history'),
