@@ -96,7 +96,7 @@ http.createServer(async (req, res) => {
     const model = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
 
     // ===== PROFANITY DETECTION =====
-    const GENERAL_PROFANITY = ['เหี้ย', 'สัตว์', 'ควาย', 'อีดอก', 'อีสัตว์', 'หน้าหี', 'สันดาน', 'เย็ด', 'ไอ้หน้า', 'อีหน้า', 'ไปตาย', 'แม่ง', 'หมาๆ', 'ไอ้บ้า', 'อีบ้า'];
+    const GENERAL_PROFANITY = ['อีดอก', 'อีสัตว์', 'หน้าหี', 'สันดาน', 'เย็ด', 'ไอ้หน้า', 'อีหน้า', 'ไปตาย', 'ไอ้บ้า', 'อีบ้า', 'อีเหี้ย', 'ไอ้เหี้ย'];
     const RUDE_TRIGGERS = ['กู', 'มึง'];
 
     const userMessages = (contents || []).filter(m => m.role === 'user');
