@@ -1601,9 +1601,9 @@
             followup.innerHTML = `
               <p>ต้องการให้อธิบายโค้ดอย่างละเอียดไหม?</p>
               <div class="followup-btns">
-                <button class="followup-btn yes">✅ ใช่, อธิบายเลย</button>
-                <button class="followup-btn no">❌ ไม่ต้อง</button>
-                <button class="followup-btn custom">✍️ พิมพ์ถามเอง</button>
+                <button class="followup-btn yes">ใช่, อธิบายเลย</button>
+                <button class="followup-btn no">ไม่ต้อง</button>
+                <button class="followup-btn custom">พิมพ์ถามเอง</button>
               </div>
             `;
             followup.querySelector('.yes').onclick = () => {
@@ -1715,7 +1715,38 @@
       } catch (error) {
         loading.remove();
         if (error.message === '__ABORTED__') {
-          // User cancelled — do nothing
+          const el = document.createElement('article');
+          el.className = 'message bot';
+          el.innerHTML = `
+            <div class="avatar bot">R</div>
+            <div class="bubble">
+              <div style="color: var(--rose); font-weight: 500; display: flex; align-items: center; gap: 8px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+                คุณหยุดการทำงาน
+              </div>
+              <button class="retry-btn" style="margin-top: 12px; padding: 6px 14px; background: var(--green); color: white; border: none; border-radius: 6px; font-family: 'Kanit', sans-serif; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path></svg>
+                ลองอีกครั้ง
+              </button>
+            </div>
+          `;
+          messages.append(el);
+          messages.scrollTop = messages.scrollHeight;
+          
+          el.querySelector('.retry-btn').onclick = () => {
+            el.remove();
+            
+            // Cleanup the aborted user message from state and DOM
+            const activeChat = getActiveChat();
+            if (activeChat && activeChat.conversation.length > 0 && activeChat.conversation[activeChat.conversation.length - 1].role === 'user') {
+                activeChat.conversation.pop();
+            }
+            const userMsgs = document.querySelectorAll('.message.user');
+            if (userMsgs.length > 0) userMsgs[userMsgs.length - 1].remove();
+            
+            // Retry sending
+            send(value);
+          };
         } else if (error.message.includes('กำลังรอรีเซ็ต') || error.message.includes('429') || error.message.includes('รอ')) {
           // 429 Rate limit — show countdown and auto-retry
           setGenerating(false);
@@ -1723,7 +1754,7 @@
 
           const el = document.createElement('article');
           el.className = 'message bot';
-          el.innerHTML = `<div class="avatar bot"></div><div class="bubble"><div class="countdown-bubble"><div class="countdown-clock">⏰</div><div id="cdText" style="font-weight:600;color:var(--rose)">ขอโทษ API ถูกใช้งานหนักเกินไป กำลังรอ 60 วินาที...</div><div class="countdown-bar-wrap"><div class="countdown-bar" id="cdBar" style="width:100%"></div></div></div></div>`;
+          el.innerHTML = `<div class="avatar bot"></div><div class="bubble"><div class="countdown-bubble"><div class="countdown-clock"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></div><div id="cdText" style="font-weight:600;color:var(--rose)">ขอโทษ API ถูกใช้งานหนักเกินไป กำลังรอ 60 วินาที...</div><div class="countdown-bar-wrap"><div class="countdown-bar" id="cdBar" style="width:100%"></div></div></div></div>`;
           messages.append(el);
           messages.scrollTop = messages.scrollHeight;
 
@@ -1734,7 +1765,7 @@
             remaining--;
             cdBar.style.width = `${(remaining / 60) * 100}%`;
             if (remaining > 0) {
-              cdText.textContent = `⏳ กำลังรอ... ${remaining} วินาที`;
+              cdText.textContent = `กำลังรอ... ${remaining} วินาที`;
             } else {
               clearInterval(timer);
               el.remove();
