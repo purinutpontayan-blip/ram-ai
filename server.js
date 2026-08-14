@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const root = __dirname;
-const port = Number(process.env.PORT || 3333);
+const port = Number(process.env.PORT || 10000);
 const transfers = new Map();
 const envFile = path.join(root, '.env');
 if (fs.existsSync(envFile)) {
@@ -120,4 +120,4 @@ http.createServer(async (req, res) => {
     const text = data.candidates?.[0]?.content?.parts?.map(part => part.text || '').join('') || 'ไม่พบคำตอบจาก Gemini';
     return send(res, 200, { text });
   } catch (error) { return send(res, 500, { error: error.message }); }
-}).listen(port, () => console.log(`Nova AI is running at http://localhost:${port}`));
+}).listen(port, () => console.log(`RAM AI is running at http://localhost:${port}`));
