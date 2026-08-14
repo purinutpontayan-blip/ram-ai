@@ -8,8 +8,6 @@
   <link rel="icon" type="image/png"
     href="https://plain-apac-prod-public.komododecks.com/202608/14/HPO0SoDWzrZqRasCUb2F/image.png">
   <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <!-- Google Identity Services -->
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
@@ -1718,13 +1716,6 @@
 </head>
 
 <body>
-  <div id="loginGate"
-    style="position:fixed; inset:0; background:#fff; z-index:9999; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:16px;">
-    <h2 style="font-size:20px; color:#0f172a;">เข้าสู่ระบบเพื่อใช้งาน RAM AI</h2>
-    <div id="googleSignInButton"></div>
-    <p id="loginError" style="color:#e11d48; font-size:13px; display:none;"></p>
-  </div>
-
   <div class="app">
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
     <aside>
@@ -1894,30 +1885,8 @@
         </button>
       </div>
 
-      <!-- Google Account Section -->
-      <div class="settings-section">
-        <div class="settings-label">บัญชี Google</div>
-        <div id="googleLoginArea">
-          <button class="google-login-btn" id="googleLoginBtn" type="button">
-            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20" height="20"
-              alt="Google" style="display:block;flex-shrink:0;" />
-            เข้าสู่ระบบด้วย Google
-          </button>
-        </div>
-        <div id="googleUserArea" style="display:none;">
-          <div class="google-user-info">
-            <img id="googleAvatar" src="" alt="" />
-            <div>
-              <div class="user-name" id="googleName"></div>
-              <div class="user-email" id="googleEmail"></div>
-            </div>
-            <button class="google-logout-btn" id="googleLogoutBtn" type="button">ออกจากระบบ</button>
-          </div>
-        </div>
-      </div>
-
       <!-- Code Redemption Section -->
-      <div class="settings-section" id="redeemSection" style="display:none;">
+      <div class="settings-section" id="redeemSection">
         <div class="settings-label">กรอกโค้ดปลดล็อก PRO</div>
 
         <!-- Active PRO status cards -->
@@ -1926,22 +1895,9 @@
         <!-- Redemption form -->
         <div class="redeem-section" id="redeemFormArea">
           <div class="redeem-card">
-            <div class="redeem-tabs">
-              <button class="redeem-tab active" id="tabAiPro" type="button">
-                <img src="https://plain-apac-prod-public.komododecks.com/202608/14/i69lxvzX51CStkgFUcjx/image.png"
-                  alt="RAM AI PRO" />
-                RAM AI PRO
-              </button>
-              <button class="redeem-tab" id="tabCodePro" type="button">
-                <img src="https://plain-apac-prod-public.komododecks.com/202608/14/ssHjXRzSdacaf1HRtT6S/image.png"
-                  alt="RAM CODE PRO" />
-                RAM CODE PRO
-              </button>
-            </div>
             <div class="redeem-body">
               <p class="redeem-desc" id="redeemDesc">
-                ปลดล็อก <strong>RAM AI PRO</strong> — เพิ่มขีดจำกัดต่อวันจาก 10 เป็น <strong>35 ครั้ง</strong>
-                และฉลาดกว่าเดิม ใช้งานได้ <strong>15 วัน</strong>
+                ปลดล็อก <strong>RAM AI PRO และ RAM CODE PRO</strong> พร้อมกัน ใช้งานได้ <strong>15 วัน</strong>
               </p>
               <div class="redeem-input-wrap">
                 <input class="redeem-input" id="redeemCodeInput" type="text" placeholder="กรอกโค้ดของคุณ..."
@@ -2009,111 +1965,9 @@
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     const API_BASE = isLocal ? `http://${window.location.hostname}:10000` : '';
 
-    // ===== Google Login =====
-    const loginGate = document.getElementById('loginGate');
-    const loginError = document.getElementById('loginError');
-    const googleSignInButton = document.getElementById('googleSignInButton');
-    let googleClientIdPromise;
-    let googleIdentityInitialized = false;
-
-    function waitForGoogleIdentity(attempts = 0) {
-      if (window.google?.accounts?.id) return Promise.resolve();
-      if (attempts >= 100) return Promise.reject(new Error('Google Identity Services did not load'));
-      return new Promise(resolve => setTimeout(resolve, 50))
-        .then(() => waitForGoogleIdentity(attempts + 1));
-    }
-
-    function getGoogleClientId() {
-      if (!googleClientIdPromise) {
-        googleClientIdPromise = fetch(`${API_BASE}/api/config`)
-          .then(res => {
-            if (!res.ok) throw new Error('Could not load Google sign-in configuration');
-            return res.json();
-          })
-          .then(({ googleClientId }) => {
-            if (!googleClientId || googleClientId.includes('YOUR_GOOGLE_CLIENT_ID')) {
-              throw new Error('GOOGLE_CLIENT_ID is not configured');
-            }
-            return googleClientId;
-          });
-      }
-      return googleClientIdPromise;
-    }
-
-    async function initializeGoogleIdentity() {
-      const [clientId] = await Promise.all([getGoogleClientId(), waitForGoogleIdentity()]);
-      if (googleIdentityInitialized) return;
-      google.accounts.id.initialize({ client_id: clientId, callback: handleGoogleLogin, auto_select: false });
-      google.accounts.id.renderButton(googleSignInButton, {
-        type: 'standard', shape: 'pill', theme: 'outline', size: 'large'
-      });
-      googleIdentityInitialized = true;
-    }
-
-    async function startGoogleSignIn() {
-      await initializeGoogleIdentity();
-      google.accounts.id.prompt();
-    }
-
-    function getSessionToken() {
-      return localStorage.getItem('ram_session_token') || '';
-    }
-
     function authHeaders(extra = {}) {
-      return Object.assign({ 'Authorization': 'Bearer ' + getSessionToken() }, extra);
+      return extra;
     }
-
-    function showLoginGate() {
-      localStorage.removeItem('ram_session_token');
-      localStorage.removeItem('ram_user');
-      loginGate.style.display = 'flex';
-    }
-
-    function hideLoginGate() {
-      loginGate.style.display = 'none';
-    }
-
-    async function handleGoogleLogin(response) {
-      try {
-        const res = await fetch(`${API_BASE}/api/auth/google`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ credential: response.credential })
-        });
-        const data = await res.json();
-        if (data.success) {
-          localStorage.setItem('ram_session_token', data.token);
-          localStorage.setItem('ram_user', JSON.stringify(data.user));
-          if (typeof setGoogleUser === 'function') setGoogleUser(data.user);
-          hideLoginGate();
-        } else {
-          loginError.textContent = data.error || 'เข้าสู่ระบบไม่สำเร็จ';
-          loginError.style.display = 'block';
-        }
-      } catch (e) {
-        loginError.textContent = 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่';
-        loginError.style.display = 'block';
-      }
-    }
-
-    // Verify existing session on load
-    (async () => {
-      const token = getSessionToken();
-      if (!token) return showLoginGate();
-      try {
-        const res = await fetch(`${API_BASE}/api/auth/me`, { headers: authHeaders() });
-        if (!res.ok) return showLoginGate();
-        hideLoginGate();
-      } catch (e) {
-        showLoginGate();
-      }
-    })();
-    initializeGoogleIdentity().catch(error => {
-      console.error('Google sign-in setup failed:', error);
-      loginError.textContent = 'Google Login ยังไม่ได้ตั้งค่าบนเซิร์ฟเวอร์';
-      loginError.style.display = 'block';
-    });
-    // ===== End Google Login =====
     const messages = document.querySelector('#messages'),
       prompt = document.querySelector('#prompt'),
       history = document.querySelector('#history'),
@@ -2617,7 +2471,6 @@
         throw new Error('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาตรวจสอบว่าได้เปิดรัน node server.js แล้วหรือยัง');
       }
 
-      if (response.status === 401) { showLoginGate(); throw new Error('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่'); }
       const data = await response.json();
       if (response.status === 429) throw new Error('กำลังรอรีเซ็ต... โปรดรอสักครู่แล้วลองใหม่อีกครั้งครับ');
       if (!response.ok) throw new Error(data.error || 'ไม่สามารถติดต่อ Gemini ได้');
@@ -3048,11 +2901,12 @@
 
     // ===== PRO & Redemption System =====
     const PRO_KEY = 'ram_ai_pro';
-    // Codes: value = 'RAM_AI_V1.0' unlocks aiPro; 'RAM_CODE_V1.0' unlocks codePro
+    // Enter either existing code once to unlock both PRO products.
     // Valid window: 14 Aug 2026 (BE 2569 = CE 2026) to 18 Aug 2026
     const VALID_CODES = {
-      'RAM_AI_V1.0': { type: 'aiPro', days: 15 },
-      'RAM_CODE_V1.0': { type: 'codePro', days: 15 }
+      'RAM_AI_V1.0': { days: 15 },
+      'RAM_CODE_V1.0': { days: 15 },
+      'RAM_PRO_V1.0': { days: 15 }
     };
     const CODE_START = new Date('2026-08-14T00:00:00+07:00').getTime();
     const CODE_END = new Date('2026-08-18T23:59:59+07:00').getTime();
@@ -3081,36 +2935,6 @@
       return d.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
     }
 
-    // ===== Google Login =====
-    let googleUser = null;
-
-    function loadGoogleUser() {
-      try {
-        const u = JSON.parse(localStorage.getItem('ram_google_user') || 'null');
-        if (u) googleUser = u;
-      } catch { }
-    }
-    loadGoogleUser();
-
-    function updateGoogleUI() {
-      const loginArea = document.getElementById('googleLoginArea');
-      const userArea = document.getElementById('googleUserArea');
-      const redeemSec = document.getElementById('redeemSection');
-      if (googleUser) {
-        loginArea.style.display = 'none';
-        userArea.style.display = 'block';
-        document.getElementById('googleAvatar').src = googleUser.picture || '';
-        document.getElementById('googleName').textContent = googleUser.name || '';
-        document.getElementById('googleEmail').textContent = googleUser.email || '';
-        redeemSec.style.display = 'block';
-        renderProStatus();
-      } else {
-        loginArea.style.display = 'block';
-        userArea.style.display = 'none';
-        redeemSec.style.display = 'none';
-      }
-    }
-
     function renderProStatus() {
       const area = document.getElementById('proStatusArea');
       area.innerHTML = '';
@@ -3134,46 +2958,6 @@
           area.appendChild(card);
         }
       });
-    }
-
-    function setGoogleUser(user) {
-      googleUser = user;
-      localStorage.setItem('ram_google_user', JSON.stringify(googleUser));
-      updateGoogleUI();
-    }
-
-    document.getElementById('googleLoginBtn').onclick = async () => {
-      try {
-        await startGoogleSignIn();
-      } catch (error) {
-        console.error('Google sign-in setup failed:', error);
-        alert('ไม่สามารถโหลด Google Login ได้ครับ กรุณาตรวจสอบการตั้งค่าและการเชื่อมต่ออินเทอร์เน็ต');
-      }
-    };
-
-    document.getElementById('googleLogoutBtn').onclick = () => {
-      googleUser = null;
-      localStorage.removeItem('ram_google_user');
-      updateGoogleUI();
-    };
-
-    // ===== Redeem Tabs =====
-    let currentRedeemType = 'aiPro';
-    document.getElementById('tabAiPro').onclick = () => switchRedeemTab('aiPro');
-    document.getElementById('tabCodePro').onclick = () => switchRedeemTab('codePro');
-
-    function switchRedeemTab(type) {
-      currentRedeemType = type;
-      document.getElementById('tabAiPro').classList.toggle('active', type === 'aiPro');
-      document.getElementById('tabCodePro').classList.toggle('active', type === 'codePro');
-      document.getElementById('redeemStatus').style.display = 'none';
-      document.getElementById('redeemStatus').className = 'redeem-status';
-      document.getElementById('redeemCodeInput').value = '';
-      if (type === 'aiPro') {
-        document.getElementById('redeemDesc').innerHTML = 'ปลดล็อก <strong>RAM AI PRO</strong> — เพิ่มขีดจำกัดต่อวันจาก 10 เป็น <strong>35 ครั้ง</strong> และฉลาดกว่าเดิม ใช้งานได้ <strong>15 วัน</strong>';
-      } else {
-        document.getElementById('redeemDesc').innerHTML = 'ปลดล็อก <strong>RAM CODE PRO</strong> — เข้าถึงโมเดล RAM CODE 3.0 และปลดขีดจำกัดต่อวัน ใช้งานได้ <strong>15 วัน</strong>';
-      }
     }
 
     document.getElementById('redeemSubmitBtn').onclick = () => {
@@ -3206,45 +2990,27 @@
         return;
       }
 
-      // Check if type matches tab
-      if (found.type !== currentRedeemType) {
-        const wrongLabel = found.type === 'aiPro' ? 'RAM AI PRO' : 'RAM CODE PRO';
-        statusEl.textContent = `⚠️ โค้ดนี้ใช้สำหรับ ${wrongLabel} กรุณาเลือกแท็บที่ถูกต้องครับ`;
-        statusEl.className = 'redeem-status error';
-        return;
-      }
-
-      // Check already used by this email
-      const usedKey = `ram_used_${found.type}`;
-      const usedBy = localStorage.getItem(usedKey);
-      if (usedBy && usedBy !== (googleUser && googleUser.email)) {
-        statusEl.textContent = '❌ โค้ดนี้ถูกใช้ไปแล้วกับบัญชีอื่นครับ';
-        statusEl.className = 'redeem-status error';
-        return;
-      }
-
-      if (isProActive(found.type)) {
-        statusEl.textContent = '✅ คุณกำลังใช้งาน PRO อยู่แล้วครับ!';
+      if (isProActive('aiPro') && isProActive('codePro')) {
+        statusEl.textContent = '✅ คุณกำลังใช้งาน RAM AI PRO และ RAM CODE PRO อยู่แล้วครับ!';
         statusEl.className = 'redeem-status success';
         return;
       }
 
-      // Activate PRO
+      // Activate RAM AI PRO and RAM CODE PRO together.
       const expiry = now + found.days * 24 * 60 * 60 * 1000;
       const proState = getProState();
-      proState[found.type] = { expiry, redeemedBy: googleUser && googleUser.email, redeemedAt: now };
+      proState.aiPro = { expiry, redeemedAt: now };
+      proState.codePro = { expiry, redeemedAt: now };
       saveProState(proState);
-      localStorage.setItem(usedKey, googleUser && googleUser.email);
 
       const expDate = formatExpiry(new Date(expiry));
-      const label = found.type === 'aiPro' ? 'RAM AI PRO' : 'RAM CODE PRO';
-      statusEl.textContent = `🎉 ปลดล็อก ${label} สำเร็จ! ใช้งานได้ถึง ${expDate}`;
+      statusEl.textContent = `🎉 ปลดล็อก RAM AI PRO และ RAM CODE PRO สำเร็จ! ใช้งานได้ถึง ${expDate}`;
       statusEl.className = 'redeem-status success';
       renderProStatus();
       updateModelSelectorPro();
     };
 
-    updateGoogleUI();
+    renderProStatus();
 
     // ===== Model Selector =====
     let selectedCodeModel = localStorage.getItem('ram_code_model') || 'code1';
