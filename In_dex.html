@@ -812,7 +812,7 @@
 
   <script>
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    const API_BASE = isLocal ? `http://${window.location.hostname}:3333` : '';
+    const API_BASE = isLocal ? `http://${window.location.hostname}:10000` : '';
     const messages = document.querySelector('#messages'),
           prompt = document.querySelector('#prompt'),
           history = document.querySelector('#history'),
