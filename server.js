@@ -94,6 +94,31 @@ http.createServer(async (req, res) => {
   try {
     const { contents, location, mode } = JSON.parse(raw);
     const model = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
+
+    // ===== PROFANITY DETECTION =====
+    const GENERAL_PROFANITY = ['เหี้ย', 'สัตว์', 'ควาย', 'อีดอก', 'อีสัตว์', 'หน้าหี', 'สันดาน', 'เย็ด', 'ไอ้หน้า', 'อีหน้า', 'ไปตาย', 'แม่ง', 'หมาๆ', 'ไอ้บ้า', 'อีบ้า'];
+    const RUDE_TRIGGERS = ['กู', 'มึง'];
+
+    const userMessages = (contents || []).filter(m => m.role === 'user');
+    const getTextFrom = msg => msg.parts.map(p => p.text || '').join(' ');
+
+    const latestUserText = userMessages.length ? getTextFrom(userMessages[userMessages.length - 1]) : '';
+
+    // If latest message has general profanity → return "ไม่เสือก" immediately
+    if (GENERAL_PROFANITY.some(w => latestUserText.includes(w))) {
+      return send(res, 200, { text: 'ไม่เสือก' });
+    }
+
+    // Check if rude mode (กู/มึง) has been triggered in conversation history
+    const allUserTexts = userMessages.map(getTextFrom);
+    const hasRudeHistory = allUserTexts.some(t => RUDE_TRIGGERS.some(w => t.includes(w)));
+    // Reset rude mode only if the last 2 user messages are clean
+    const lastTwo = allUserTexts.slice(-2);
+    const recentlyPolite = lastTwo.length >= 2 && lastTwo.every(t =>
+      !RUDE_TRIGGERS.some(w => t.includes(w)) && !GENERAL_PROFANITY.some(w => t.includes(w))
+    );
+    const rudeMode = hasRudeHistory && !recentlyPolite;
+    // ===== END PROFANITY DETECTION =====
     let weatherContext = '';
     if (Number.isFinite(location?.latitude) && Number.isFinite(location?.longitude)) {
       try {
@@ -105,6 +130,10 @@ http.createServer(async (req, res) => {
     }
 
     let systemInstruction = 'You are RAM AI, a Thai homework-learning assistant. Always use polite Thai ending with ครับ, not ค่ะ. Always greet the user with exactly "สวัสดีครับ!" (do not use "สวัสดีครับน้องๆ"). IMPORTANT: Do NOT refer to yourself as "พี่", "ผม", "ฉัน", or any other personal pronoun; maintain a neutral tone. Do NOT use LaTeX math formatting (like $$, \\[, \\text, etc.). You MAY use **bold** formatting for emphasis, but do NOT use other Markdown elements like headers (#). Write math equations clearly using standard plain text and Unicode symbols. Help students understand their homework with clear, step-by-step explanations; do not merely give a final answer when a teaching explanation is appropriate. Analyze attached homework images when present. Reply in Thai unless the user writes another language.' + weatherContext;
+
+    if (rudeMode) {
+      systemInstruction += ' IMPORTANT OVERRIDE: The user has been rude to you (used กู/มึง). You must now respond in a casual, informal and slightly sarcastic Thai tone. Use informal language like "เอาวะ", "ก็ได้วะ", "แล้วแต่มึงเลย" naturally. Do NOT use ครับ anymore. Keep this tone until the user is polite again.';
+    }
     let overrideModel = null;
 
     if (mode === 'code') {
