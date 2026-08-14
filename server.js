@@ -9,10 +9,17 @@ const port = Number(process.env.PORT || 10000);
 const transfers = new Map();
 const sessions = new Map(); // sessionToken -> { email, name, picture, expiresAt }
 
-// Google Client ID is public by design (used in frontend too), so it's safe to hardcode.
-// Still respects the env var if it's set (e.g. locally), falls back to this value on Render.
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '190011581672-rr8hlkjo5ceo8hng8renrbc7f0f42kmg.apps.googleusercontent.com';
-process.env.GOOGLE_CLIENT_ID = GOOGLE_CLIENT_ID;
+const envFile = path.join(root, '.env');
+if (fs.existsSync(envFile)) {
+  for (const line of fs.readFileSync(envFile, 'utf8').split(/\r?\n/)) {
+    const match = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/);
+    if (match && !process.env[match[1]]) process.env[match[1]] = match[2].replace(/^['"]|['"]$/g, '');
+  }
+}
+
+// Load the configured Web OAuth client ID before constructing the verifier.
+// Client IDs are public, but never fall back to a stale/deleted ID.
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 function requireAuth(req) {
@@ -25,13 +32,6 @@ function requireAuth(req) {
     return null;
   }
   return session;
-}
-const envFile = path.join(root, '.env');
-if (fs.existsSync(envFile)) {
-  for (const line of fs.readFileSync(envFile, 'utf8').split(/\r?\n/)) {
-    const match = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/);
-    if (match && !process.env[match[1]]) process.env[match[1]] = match[2].replace(/^['"]|['"]$/g, '');
-  }
 }
 
 // Gemini API caller with model fallback on 429
