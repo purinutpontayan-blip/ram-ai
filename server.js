@@ -20,16 +20,16 @@ const FALLBACK_MODEL = 'gemini-3.5-flash-lite';
 async function callGemini(apiKey, body, overrideModel = null) {
   const url = model => `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
   const opts = { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey }, body: JSON.stringify(body) };
-  
+
   if (overrideModel) {
     let res = await fetch(url(overrideModel), opts);
     return res;
   }
-  
+
   // Try primary model
   let res = await fetch(url(PRIMARY_MODEL), opts);
   if (res.status !== 429) return res;
-  
+
   // Primary rate-limited — try fallback model
   res = await fetch(url(FALLBACK_MODEL), opts);
   return res;
@@ -52,8 +52,8 @@ http.createServer(async (req, res) => {
     });
     return res.end();
   }
-  if (req.method === 'GET' && req.url === '/') return fs.createReadStream(path.join(root, 'index.html')).pipe(res);
-  
+  if (req.method === 'GET' && req.url === '/') return fs.createReadStream(path.join(root, 'In_dex.html')).pipe(res);
+
   if (req.method === 'POST' && req.url === '/api/transfer/upload') {
     let raw = ''; for await (const chunk of req) raw += chunk;
     try {
@@ -62,7 +62,7 @@ http.createServer(async (req, res) => {
       transfers.set(data.token, data.appState);
       setTimeout(() => transfers.delete(data.token), 600000); // 10 min
       return send(res, 200, { success: true });
-    } catch(e) { return send(res, 500, { error: e.message }); }
+    } catch (e) { return send(res, 500, { error: e.message }); }
   }
 
   if (req.method === 'GET' && req.url.startsWith('/api/transfer/download')) {
@@ -103,15 +103,15 @@ http.createServer(async (req, res) => {
         if (weather?.current) weatherContext = ` Current weather supplied by a forecast service: temperature ${weather.current.temperature_2m}°C; feels like ${weather.current.apparent_temperature}°C; humidity ${weather.current.relative_humidity_2m}%; wind ${weather.current.wind_speed_10m} km/h; WMO weather code ${weather.current.weather_code}; local observation time ${weather.current.time}. Use these facts directly and mention that conditions are approximate.`;
       } catch { weatherContext = ' Location access was granted, but the current weather service is unavailable.'; }
     }
-    
+
     let systemInstruction = 'You are RAM AI, a Thai homework-learning assistant. Always use polite Thai ending with ครับ, not ค่ะ. Always greet the user with exactly "สวัสดีครับ!" (do not use "สวัสดีครับน้องๆ"). IMPORTANT: Do NOT refer to yourself as "พี่", "ผม", "ฉัน", or any other personal pronoun; maintain a neutral tone. Do NOT use LaTeX math formatting (like $$, \\[, \\text, etc.). You MAY use **bold** formatting for emphasis, but do NOT use other Markdown elements like headers (#). Write math equations clearly using standard plain text and Unicode symbols. Help students understand their homework with clear, step-by-step explanations; do not merely give a final answer when a teaching explanation is appropriate. Analyze attached homework images when present. Reply in Thai unless the user writes another language.' + weatherContext;
     let overrideModel = null;
-    
+
     if (mode === 'code') {
       systemInstruction = 'You are RAM CODE, an expert AI coding assistant. You must write clear, well-structured, and efficient code. Always use markdown code blocks (```language ... ```) for your code. Provide explanations in polite Thai ending with ครับ. Greet the user with "สวัสดีครับ! RAM CODE พร้อมช่วยเขียนโปรแกรมแล้วครับ". Do not use LaTeX math.';
       overrideModel = 'gemini-3.6-flash';
     }
-    
+
     const body = { systemInstruction: { parts: [{ text: systemInstruction }] }, contents };
     const response = await callGemini(process.env.GEMINI_API_KEY, body, overrideModel);
     if (response.status === 429) return send(res, 429, { error: 'กำลังรอรีเซ็ต...' });
