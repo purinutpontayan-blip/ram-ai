@@ -61,12 +61,12 @@
     .brand {
       width: 100%;
       height: 72px;
-      background: url('RAM AI.png') center center / 90% auto no-repeat;
+      background: url('https://plain-apac-prod-public.komododecks.com/202608/14/HPO0SoDWzrZqRasCUb2F/image.png') center center / 90% auto no-repeat;
       cursor: pointer;
       transition: opacity 0.2s;
     }
     .brand:hover { opacity: 0.8; }
-    .brand.code-mode { background-image: url('RAM%20AI%20(2).png'); }
+    .brand.code-mode { background-image: url('https://plain-apac-prod-public.komododecks.com/202608/14/hbJ5do2LkbfyJj8lw5xJ/image.png'); }
     .brand-arrow {
       position: absolute;
       bottom: 4px;
@@ -140,7 +140,7 @@
     }
     .avatar.bot {
       overflow: hidden;
-      background: url('RAM AI (1).png') center center / cover no-repeat;
+      background: url('https://plain-apac-prod-public.komododecks.com/202608/14/ErLIGAxdzwZ7e3uXUnDh/image.png') center center / cover no-repeat;
       font-size: 0;
     }
     .mark {
@@ -1190,18 +1190,20 @@
       return data.text;
     }
 
-    function add(text, role, file, save = true) {
+    function add(text, role, file, save = true, animate = false) {
       const el = document.createElement('article');
       el.className = `message ${role}`;
       el.innerHTML = `<div class="avatar ${role === 'bot' ? 'bot' : ''}">${role === 'bot' ? '' : 'คุณ'}</div><div class="bubble"></div>`;
       const bubble = el.querySelector('.bubble');
+      
+      const elementsToAppend = [];
       
       if (file && !file.isText) {
         const img = document.createElement('img');
         img.className = 'attachment';
         img.src = file.url || (file.inlineData ? `data:${file.inlineData.mimeType};base64,${file.inlineData.data}` : '');
         img.alt = 'รูปโจทย์ที่แนบ';
-        bubble.append(img);
+        elementsToAppend.push(img);
       }
       
       if (text) {
@@ -1217,9 +1219,9 @@
                    if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
                      const strong = document.createElement('strong');
                      strong.textContent = part.slice(2, -2);
-                     bubble.append(strong);
+                     elementsToAppend.push(strong);
                    } else if (part) {
-                     bubble.append(document.createTextNode(part));
+                     elementsToAppend.push(document.createTextNode(part));
                    }
                  });
               }
@@ -1273,7 +1275,7 @@
                  };
                }
                
-               bubble.append(codeContainer);
+               elementsToAppend.push(codeContainer);
                i++; // skip the next item because we consumed it (the code content)
             }
           }
@@ -1284,16 +1286,50 @@
             if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
               const strong = document.createElement('strong');
               strong.textContent = part.slice(2, -2);
-              bubble.append(strong);
+              elementsToAppend.push(strong);
             } else if (part) {
-              bubble.append(document.createTextNode(part));
+              elementsToAppend.push(document.createTextNode(part));
             }
           });
         }
       }
       
       messages.append(el);
-      messages.scrollTop = messages.scrollHeight;
+      
+      if (animate) {
+        (async () => {
+          for (const item of elementsToAppend) {
+            if (item.nodeType === Node.TEXT_NODE) {
+              const text = item.textContent;
+              item.textContent = '';
+              bubble.append(item);
+              for (let i = 0; i < text.length; i++) {
+                item.textContent += text[i];
+                if (i % 2 === 0) messages.scrollTop = messages.scrollHeight;
+                await new Promise(r => setTimeout(r, 15));
+              }
+            } else if (item.tagName === 'STRONG') {
+              const text = item.textContent;
+              item.textContent = '';
+              bubble.append(item);
+              for (let i = 0; i < text.length; i++) {
+                item.textContent += text[i];
+                if (i % 2 === 0) messages.scrollTop = messages.scrollHeight;
+                await new Promise(r => setTimeout(r, 15));
+              }
+            } else {
+              bubble.append(item);
+              messages.scrollTop = messages.scrollHeight;
+              await new Promise(r => setTimeout(r, 50));
+            }
+          }
+          messages.scrollTop = messages.scrollHeight;
+        })();
+      } else {
+        elementsToAppend.forEach(item => bubble.append(item));
+        messages.scrollTop = messages.scrollHeight;
+      }
+      
       if(save) saveState();
     }
 
@@ -1342,7 +1378,7 @@
         
         const reply = await answer(text || 'ช่วยอธิบายโจทย์ในรูปอย่างเป็นขั้นตอน', file, location);
         loading.remove();
-        add(reply, 'bot', null, false);
+        add(reply, 'bot', null, false, true);
         
         if (isNewChat) {
           const userMsg = text || 'ช่วยอธิบายโจทย์ในรูป';
@@ -1362,7 +1398,7 @@
         }
       } catch (error) {
         loading.remove();
-        add(`เกิดข้อผิดพลาด: ${error.message}`, 'bot', null, false);
+        add(`เกิดข้อผิดพลาด: ${error.message}`, 'bot', null, false, true);
       }
     }
 
