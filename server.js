@@ -1,10 +1,26 @@
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
+const crypto = require('node:crypto');
+const { OAuth2Client } = require('google-auth-library');
 
 const root = __dirname;
 const port = Number(process.env.PORT || 10000);
 const transfers = new Map();
+const sessions = new Map(); // sessionToken -> { email, name, picture, expiresAt }
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+function requireAuth(req) {
+  const authHeader = req.headers['authorization'] || '';
+  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+  if (!token) return null;
+  const session = sessions.get(token);
+  if (!session || session.expiresAt < Date.now()) {
+    if (session) sessions.delete(token);
+    return null;
+  }
+  return session;
+}
 const envFile = path.join(root, '.env');
 if (fs.existsSync(envFile)) {
   for (const line of fs.readFileSync(envFile, 'utf8').split(/\r?\n/)) {
@@ -55,6 +71,47 @@ http.createServer(async (req, res) => {
   }
   if (req.method === 'GET' && req.url === '/') return fs.createReadStream(path.join(root, 'In_dex.html')).pipe(res);
 
+  if (req.method === 'POST' && req.url === '/api/auth/google') {
+    if (!process.env.GOOGLE_CLIENT_ID) return send(res, 500, { error: 'ยังไม่ได้ตั้งค่า GOOGLE_CLIENT_ID' });
+    let raw = ''; for await (const chunk of req) raw += chunk;
+    try {
+      const { credential } = JSON.parse(raw);
+      if (!credential) return send(res, 400, { error: 'Missing credential' });
+      const ticket = await googleClient.verifyIdToken({
+        idToken: credential,
+        audience: process.env.GOOGLE_CLIENT_ID,
+      });
+      const payload = ticket.getPayload();
+      const sessionToken = crypto.randomUUID();
+      sessions.set(sessionToken, {
+        email: payload.email,
+        name: payload.name,
+        picture: payload.picture,
+        expiresAt: Date.now() + 1000 * 60 * 60 * 24 * 7 // 7 วัน
+      });
+      return send(res, 200, {
+        success: true,
+        token: sessionToken,
+        user: { email: payload.email, name: payload.name, picture: payload.picture }
+      });
+    } catch (e) {
+      return send(res, 401, { error: 'Invalid Google token' });
+    }
+  }
+
+  if (req.method === 'POST' && req.url === '/api/auth/logout') {
+    const authHeader = req.headers['authorization'] || '';
+    const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+    if (token) sessions.delete(token);
+    return send(res, 200, { success: true });
+  }
+
+  if (req.method === 'GET' && req.url === '/api/auth/me') {
+    const user = requireAuth(req);
+    if (!user) return send(res, 401, { error: 'Not authenticated' });
+    return send(res, 200, { user: { email: user.email, name: user.name, picture: user.picture } });
+  }
+
   if (req.method === 'POST' && req.url === '/api/transfer/upload') {
     let raw = ''; for await (const chunk of req) raw += chunk;
     try {
@@ -73,6 +130,7 @@ http.createServer(async (req, res) => {
   }
 
   if (req.method === 'POST' && req.url === '/api/title') {
+    if (!requireAuth(req)) return send(res, 401, { error: 'กรุณาล็อกอินด้วย Google ก่อนใช้งาน' });
     if (!process.env.GEMINI_API_KEY) return send(res, 500, { error: 'ยังไม่ได้ตั้งค่า GEMINI_API_KEY' });
     let raw = ''; for await (const chunk of req) raw += chunk;
     try {
@@ -96,10 +154,12 @@ http.createServer(async (req, res) => {
     }
     return send(res, 404, { error: 'Not found' });
   }
+  const authedUser = requireAuth(req);
+  if (!authedUser) return send(res, 401, { error: 'กรุณาล็อกอินด้วย Google ก่อนใช้งาน' });
   if (!process.env.GEMINI_API_KEY) return send(res, 500, { error: 'ยังไม่ได้ตั้งค่า GEMINI_API_KEY' });
   let raw = ''; for await (const chunk of req) raw += chunk;
   try {
-    const { contents, location, mode } = JSON.parse(raw);
+    const { contents, location, mode, codeModel } = JSON.parse(raw);
     const model = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
 
     // ===== PROFANITY DETECTION =====
@@ -144,8 +204,15 @@ http.createServer(async (req, res) => {
     let overrideModel = null;
 
     if (mode === 'code') {
-      systemInstruction = 'You are RAM CODE, an expert AI coding assistant. You must write clear, well-structured, and efficient code. Always use markdown code blocks (```language ... ```) for your code. Provide explanations in polite Thai ending with ครับ. Greet the user with "สวัสดีครับ! RAM CODE พร้อมช่วยเขียนโปรแกรมแล้วครับ". Do not use LaTeX math.';
-      overrideModel = 'gemini-3.6-flash';
+      // Map codeModel from client to actual Gemini model
+      const CODE_MODELS = {
+        'code1': 'gemini-2.5-flash',  // RAM CODE 1.0
+        'code2': 'gemini-3.6-flash',  // RAM CODE 2.0
+        'code3': 'gemini-3.7-flash',  // RAM CODE 3.0 (PRO)
+      };
+      overrideModel = CODE_MODELS[codeModel] || 'gemini-2.5-flash';
+      const modelVersion = codeModel === 'code3' ? '3.0' : codeModel === 'code2' ? '2.0' : '1.0';
+      systemInstruction = `You are RAM CODE ${modelVersion}, an expert AI coding assistant. You must write clear, well-structured, and efficient code. Always use markdown code blocks (\`\`\`language ... \`\`\`) for your code. Provide explanations in polite Thai ending with ครับ. Greet the user with "สวัสดีครับ! RAM CODE ${modelVersion} พร้อมช่วยเขียนโปรแกรมแล้วครับ". Do not use LaTeX math.`;
     }
 
     const body = { systemInstruction: { parts: [{ text: systemInstruction }] }, contents };
