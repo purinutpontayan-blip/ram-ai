@@ -139,7 +139,6 @@ http.createServer(async (req, res) => {
   }
 
   if (req.method === 'POST' && req.url === '/api/title') {
-    if (!requireAuth(req)) return send(res, 401, { error: 'กรุณาล็อกอินด้วย Google ก่อนใช้งาน' });
     if (!process.env.GEMINI_API_KEY) return send(res, 500, { error: 'ยังไม่ได้ตั้งค่า GEMINI_API_KEY' });
     let raw = ''; for await (const chunk of req) raw += chunk;
     try {
@@ -163,8 +162,6 @@ http.createServer(async (req, res) => {
     }
     return send(res, 404, { error: 'Not found' });
   }
-  const authedUser = requireAuth(req);
-  if (!authedUser) return send(res, 401, { error: 'กรุณาล็อกอินด้วย Google ก่อนใช้งาน' });
   if (!process.env.GEMINI_API_KEY) return send(res, 500, { error: 'ยังไม่ได้ตั้งค่า GEMINI_API_KEY' });
   let raw = ''; for await (const chunk of req) raw += chunk;
   try {
