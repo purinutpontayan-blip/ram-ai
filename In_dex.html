@@ -1719,11 +1719,24 @@
 
 <body>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script>
+    // ===== Fetch shared config (Google Client ID) from server, which reads it from .env =====
+    // This keeps In_dex.html and the server's Environment Variables in sync automatically.
+    window.RAM_CONFIG = { googleClientId: null };
+    fetch('/api/config')
+      .then(r => r.json())
+      .then(cfg => {
+        window.RAM_CONFIG.googleClientId = cfg.googleClientId || null;
+        const onloadDiv = document.getElementById('g_id_onload');
+        if (onloadDiv && cfg.googleClientId) onloadDiv.setAttribute('data-client_id', cfg.googleClientId);
+      })
+      .catch(err => console.error('Failed to load /api/config:', err));
+  </script>
 
-  <div id="loginGate" style="position:fixed; inset:0; background:#fff; z-index:9999; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:16px;">
+  <div id="loginGate"
+    style="position:fixed; inset:0; background:#fff; z-index:9999; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:16px;">
     <h2 style="font-size:20px; color:#0f172a;">เข้าสู่ระบบเพื่อใช้งาน RAM AI</h2>
-    <div id="g_id_onload"
-      data-client_id="YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+    <div id="g_id_onload" data-client_id="YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
       data-callback="handleGoogleLogin">
     </div>
     <div class="g_id_signin" data-type="standard" data-shape="pill" data-theme="outline" data-size="large"></div>
@@ -3107,11 +3120,26 @@
       }
     };
 
-    document.getElementById('googleLoginBtn').onclick = () => {
+    document.getElementById('googleLoginBtn').onclick = async () => {
       // Initialize Google One Tap
       if (typeof google !== 'undefined' && google.accounts) {
+        // Use the Client ID from the server (.env) if it's loaded yet; otherwise fetch it now.
+        let clientId = window.RAM_CONFIG && window.RAM_CONFIG.googleClientId;
+        if (!clientId) {
+          try {
+            const cfg = await fetch('/api/config').then(r => r.json());
+            clientId = cfg.googleClientId;
+            window.RAM_CONFIG.googleClientId = clientId;
+          } catch (e) {
+            console.error('Failed to load /api/config:', e);
+          }
+        }
+        if (!clientId) {
+          alert('ไม่สามารถโหลดการตั้งค่า Google Login ได้ครับ กรุณาลองใหม่อีกครั้ง');
+          return;
+        }
         google.accounts.id.initialize({
-          client_id: '190011581672-rr8hlkjo5ceo8hng8renrbc7f0f42kmg.apps.googleusercontent.com',
+          client_id: clientId,
           callback: handleGoogleCallback,
           auto_select: false
         });
