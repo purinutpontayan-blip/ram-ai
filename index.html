@@ -948,15 +948,14 @@
 
     document.querySelectorAll('.mode-option').forEach(btn => {
       btn.onclick = () => {
-        appState.currentAppMode = btn.dataset.appMode;
+        const newMode = btn.dataset.appMode;
+        if (appState.currentAppMode !== newMode) {
+          appState.currentAppMode = newMode;
+          appState.activeChatId = null;
+        }
         saveState();
         updateModeUI();
-        
-        // If empty chat, re-render welcome screen
-        const activeChat = getActiveChat();
-        if (!activeChat || activeChat.conversation.length === 0) {
-          loadActiveChatUI();
-        }
+        loadActiveChatUI();
       };
     });
 
