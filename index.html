@@ -811,6 +811,7 @@
   </div>
 
   <script>
+    const API_BASE = window.location.hostname ? `http://${window.location.hostname}:3333` : 'http://localhost:3333';
     const messages = document.querySelector('#messages'),
           prompt = document.querySelector('#prompt'),
           history = document.querySelector('#history'),
@@ -1025,7 +1026,7 @@
         // Generate a random 6-character short token
         const token = Math.random().toString(36).substr(2, 6).toUpperCase();
         
-        fetch('http://localhost:3333/api/transfer/upload', {
+        fetch(`${API_BASE}/api/transfer/upload`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token, appState })
@@ -1066,7 +1067,7 @@
           document.getElementById('progressBar').style.width = '0%';
           
           const xhr = new XMLHttpRequest();
-          xhr.open('GET', `http://localhost:3333/api/transfer/download?token=${decodedText}`);
+          xhr.open('GET', `${API_BASE}/api/transfer/download?token=${decodedText}`);
           
           xhr.onprogress = (e) => {
             if (e.lengthComputable) {
@@ -1194,7 +1195,7 @@
       
       let response;
       try {
-        response = await fetch('http://localhost:3333/api/chat', {
+        response = await fetch(`${API_BASE}/api/chat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ contents: activeChat.conversation, location, mode: appState.currentAppMode })
@@ -1434,7 +1435,7 @@
           const userMsg = text || 'ช่วยอธิบายโจทย์ในรูป';
           const replyForTitle = reply;
           setTimeout(() => {
-            fetch('http://localhost:3333/api/title', {
+            fetch(`${API_BASE}/api/title`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ userMessage: userMsg, modelReply: replyForTitle })
