@@ -212,7 +212,17 @@
       overflow-y: auto;
       overflow-x: hidden;
     }
-    .history button {
+    .history-item {
+      position: relative;
+      display: flex;
+      align-items: center;
+      border-radius: 12px;
+      transition: var(--transition);
+    }
+    .history-item:hover { background: rgba(16, 185, 129, 0.1); transform: translateX(4px); }
+    .history-item:hover .del-btn { opacity: 1; }
+    .history-item button {
+      flex: 1;
       border: 0;
       border-radius: 12px;
       padding: 12px 14px;
@@ -227,11 +237,63 @@
       white-space: nowrap;
       transition: var(--transition);
     }
-    .history button:hover {
-      background: rgba(16, 185, 129, 0.1);
-      color: var(--deep-green);
-      transform: translateX(4px);
+    .history-item button:hover { color: var(--deep-green); }
+    .del-btn {
+      flex: 0 0 28px;
+      height: 28px;
+      border: 0;
+      background: rgba(251,113,133,0.12);
+      color: var(--rose);
+      border-radius: 8px;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      margin-right: 6px;
+      opacity: 0;
+      transition: var(--transition);
     }
+    .del-btn:hover { background: var(--rose); color: #fff; }
+    
+    /* Delete confirmation modal */
+    .del-modal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      place-items: center;
+      padding: 20px;
+      background: rgba(15,23,42,0.6);
+      backdrop-filter: blur(8px);
+      z-index: 99;
+    }
+    .del-modal.open { display: grid; animation: slideUp 0.2s ease-out; }
+    .del-dialog {
+      width: min(400px, 100%);
+      padding: 28px;
+      border-radius: 24px;
+      background: #fff;
+      box-shadow: 0 25px 75px rgba(0,0,0,0.2);
+    }
+    .del-dialog h3 { margin: 0 0 8px; font-size: 18px; color: var(--ink); }
+    .del-dialog p { margin: 0 0 16px; color: var(--muted); font-size: 14px; line-height: 1.6; }
+    .del-dialog input {
+      width: 100%; padding: 10px 14px; border: 1.5px solid var(--line);
+      border-radius: 12px; font: inherit; font-size: 15px; color: var(--ink);
+      outline: none; margin-bottom: 14px; transition: border-color 0.2s;
+    }
+    .del-dialog input:focus { border-color: var(--rose); }
+    .del-dialog-btns { display: flex; gap: 10px; }
+    .del-confirm {
+      flex: 1; padding: 10px; border: 0; border-radius: 12px;
+      background: var(--rose); color: #fff; font: inherit; font-weight: 600;
+      cursor: pointer; transition: var(--transition); opacity: 0.4; pointer-events: none;
+    }
+    .del-confirm.ready { opacity: 1; pointer-events: auto; }
+    .del-confirm.ready:hover { background: #e11d48; }
+    .del-cancel {
+      padding: 10px 20px; border: 1px solid var(--line); border-radius: 12px;
+      background: #fff; color: var(--muted); font: inherit; cursor: pointer; transition: var(--transition);
+    }
+    .del-cancel:hover { background: #f8fafc; }
     .settings {
       position: absolute;
       bottom: 24px;
@@ -582,6 +644,35 @@
       color: var(--muted);
       font-size: 13px;
     }
+    .countdown-bubble {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .countdown-clock {
+      font-size: 36px;
+      line-height: 1;
+      animation: tickPulse 1s infinite;
+    }
+    @keyframes tickPulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.1); opacity: 0.7; }
+    }
+    .countdown-bar-wrap {
+      width: 100%;
+      height: 6px;
+      background: #e2e8f0;
+      border-radius: 4px;
+      overflow: hidden;
+      min-width: 180px;
+    }
+    .countdown-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--rose), var(--pink));
+      border-radius: 4px;
+      transition: width 1s linear;
+    }
     .modal {
       position: fixed;
       inset: 0;
@@ -796,6 +887,19 @@
     </main>
   </div>
 
+  <!-- Delete Chat Confirmation Modal -->
+  <div class="del-modal" id="delModal">
+    <div class="del-dialog">
+      <h3>🗑️ ลบบทสนทนา</h3>
+      <p>พิมพ์ <strong>"ลบแชทนี้"</strong> เพื่อยืนยันการลบ<br/><span style="color:var(--rose);font-size:13px;">การลบจะไม่สามารถกู้คืนได้</span></p>
+      <input type="text" id="delInput" placeholder="ลบแชทนี้" autocomplete="off" />
+      <div class="del-dialog-btns">
+        <button class="del-cancel" id="delCancel">ยกเลิก</button>
+        <button class="del-confirm" id="delConfirm">ลบเลย</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
     <div class="dialog">
       <div class="dialog-head">
@@ -842,6 +946,8 @@
     let attachment = null;
     let isGenerating = false;
     let currentAbortController = null;
+    let isAnimating = false;
+    let messageQueue = [];
     const stopBtn = document.getElementById('stopBtn');
     const sendBtn = document.getElementById('sendBtn');
 
@@ -849,6 +955,13 @@
       isGenerating = state;
       sendBtn.style.display = state ? 'none' : 'grid';
       stopBtn.classList.toggle('show', state);
+    }
+
+    function processQueue() {
+      if (messageQueue.length > 0 && !isGenerating && !isAnimating) {
+        const next = messageQueue.shift();
+        send(next);
+      }
     }
 
     stopBtn.onclick = () => {
@@ -956,11 +1069,14 @@
       }
 
       appState.chats.forEach(chat => {
+        const wrap = document.createElement('div');
+        wrap.className = 'history-item';
+        
         const item = document.createElement('button');
         item.textContent = chat.title;
         if (chat.id === appState.activeChatId) {
-          item.style.background = 'rgba(16, 185, 129, 0.1)';
           item.style.color = 'var(--deep-green)';
+          wrap.style.background = 'rgba(16, 185, 129, 0.1)';
         }
         item.onclick = () => {
           if (appState.activeChatId !== chat.id) {
@@ -970,9 +1086,52 @@
           }
           if (window.innerWidth <= 768) document.getElementById('sidebarOverlay').click();
         };
-        history.append(item);
+        
+        const delBtn = document.createElement('button');
+        delBtn.className = 'del-btn';
+        delBtn.title = 'ลบแชทนี้';
+        delBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14H6L5 6"></path><path d="M10 11v6M14 11v6"></path><path d="M9 6V4h6v2"></path></svg>`;
+        delBtn.onclick = (e) => {
+          e.stopPropagation();
+          openDelModal(chat.id);
+        };
+        
+        wrap.append(item, delBtn);
+        history.append(wrap);
       });
     }
+
+    // Delete modal logic
+    let pendingDeleteId = null;
+    const delModal = document.getElementById('delModal');
+    const delInput = document.getElementById('delInput');
+    const delConfirm = document.getElementById('delConfirm');
+    const delCancel = document.getElementById('delCancel');
+
+    function openDelModal(chatId) {
+      pendingDeleteId = chatId;
+      delInput.value = '';
+      delConfirm.classList.remove('ready');
+      delModal.classList.add('open');
+      setTimeout(() => delInput.focus(), 100);
+    }
+    function closeDelModal() {
+      delModal.classList.remove('open');
+      pendingDeleteId = null;
+    }
+    delInput.oninput = () => {
+      delConfirm.classList.toggle('ready', delInput.value.trim() === 'ลบแชทนี้');
+    };
+    delConfirm.onclick = () => {
+      if (!pendingDeleteId) return;
+      appState.chats = appState.chats.filter(c => c.id !== pendingDeleteId);
+      if (appState.activeChatId === pendingDeleteId) appState.activeChatId = null;
+      saveState();
+      loadActiveChatUI();
+      closeDelModal();
+    };
+    delCancel.onclick = closeDelModal;
+    delModal.onclick = (e) => { if (e.target === delModal) closeDelModal(); };
 
     function loadActiveChatUI() {
       messages.innerHTML = '';
@@ -1038,6 +1197,31 @@
     // Init page
     loadState();
 
+    // Auto-receive: if URL has ?token= parameter, fetch data automatically
+    (async () => {
+      const urlToken = new URLSearchParams(window.location.search).get('token');
+      if (urlToken) {
+        // Clean URL without reloading
+        history.replaceState({}, '', window.location.pathname);
+        try {
+          const res = await fetch(`${API_BASE}/api/transfer/download?token=${urlToken}`);
+          if (!res.ok) throw new Error('token_not_found');
+          const data = await res.json();
+          if (data.appState) {
+            localStorage.setItem('ram_ai_chat', JSON.stringify(data.appState));
+            alert('โอนย้ายข้อมูลสำเร็จ!');
+            location.reload();
+          } else throw new Error();
+        } catch(e) {
+          if (e.message === 'token_not_found') {
+            alert('ลิงก์หมดอายุหรือไม่ถูกต้อง กรุณาขอไฟล์ QR ใหม่จากเครื่องเดิมครับ');
+          } else {
+            alert('เกิดข้อผิดพลาดในการรับข้อมูล');
+          }
+        }
+      }
+    })();
+
     // QR Code scanner and generator
     let html5QrcodeScanner = null;
     const qrCanvas = document.getElementById('qrCanvas');
@@ -1071,10 +1255,11 @@
         .then(data => {
           if (data.success) {
             qrCanvas.style.display = 'block';
-            qrText.textContent = 'เปิด QR นี้เพื่อโอนย้ายประวัติแชตไปยังเครื่องใหม่ครับ (อายุ 10 นาที)';
+            qrText.textContent = 'ให้อุปกรณ์ใหม่สแกน QR นี้เพื่อรับประวัติแชตครับ (อายุ 10 นาที)';
+            const receiveUrl = `${window.location.origin}${window.location.pathname}?token=${token}`;
             new QRious({
               element: qrCanvas,
-              value: token,
+              value: receiveUrl,
               size: 220,
               background: 'white',
               foreground: '#1e293b'
@@ -1093,6 +1278,10 @@
         
         html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 180, height: 180} }, false);
         html5QrcodeScanner.render((decodedText) => {
+          // Extract token from scanned text (could be full URL or just token)
+          let token = decodedText.trim();
+          try { token = new URL(decodedText).searchParams.get('token') || token; } catch(e) {}
+          
           // Pause scanning
           html5QrcodeScanner.clear();
           readerDiv.style.display = 'none';
@@ -1103,7 +1292,7 @@
           document.getElementById('progressBar').style.width = '0%';
           
           const xhr = new XMLHttpRequest();
-          xhr.open('GET', `${API_BASE}/api/transfer/download?token=${decodedText}`);
+          xhr.open('GET', `${API_BASE}/api/transfer/download?token=${token}`);
           
           xhr.onprogress = (e) => {
             if (e.lengthComputable) {
@@ -1359,6 +1548,7 @@
       messages.append(el);
       
       if (animate) {
+        isAnimating = true;
         (async () => {
           let hasCode = false;
           for (const item of elementsToAppend) {
@@ -1414,6 +1604,8 @@
           }
           
           messages.scrollTop = messages.scrollHeight;
+          isAnimating = false;
+          processQueue();
         })();
       } else {
         elementsToAppend.forEach(item => bubble.append(item));
@@ -1425,8 +1617,16 @@
 
     async function send(value) {
       if (isGenerating) return;
-      const text = value.trim();
+      const text = (value || '').trim();
       if (!text && !attachment) return;
+
+      // If animation is playing, queue the message
+      if (isAnimating) {
+        messageQueue.push(value);
+        prompt.value = '';
+        prompt.style.height = '48px';
+        return;
+      }
       
       document.getElementById('welcome')?.remove();
       const file = attachment;
@@ -1490,7 +1690,36 @@
         }
       } catch (error) {
         loading.remove();
-        if (error.message !== '__ABORTED__') {
+        if (error.message === '__ABORTED__') {
+          // User cancelled — do nothing
+        } else if (error.message.includes('กำลังรอรีเซ็ต') || error.message.includes('429') || error.message.includes('รอ')) {
+          // 429 Rate limit — show countdown and auto-retry
+          setGenerating(false);
+          currentAbortController = null;
+
+          const el = document.createElement('article');
+          el.className = 'message bot';
+          el.innerHTML = `<div class="avatar bot"></div><div class="bubble"><div class="countdown-bubble"><div class="countdown-clock">⏰</div><div id="cdText" style="font-weight:600;color:var(--rose)">ขอโทษ API ถูกใช้งานหนักเกินไป กำลังรอ 60 วินาที...</div><div class="countdown-bar-wrap"><div class="countdown-bar" id="cdBar" style="width:100%"></div></div></div></div>`;
+          messages.append(el);
+          messages.scrollTop = messages.scrollHeight;
+
+          let remaining = 60;
+          const cdText = el.querySelector('#cdText');
+          const cdBar = el.querySelector('#cdBar');
+          const timer = setInterval(() => {
+            remaining--;
+            cdBar.style.width = `${(remaining / 60) * 100}%`;
+            if (remaining > 0) {
+              cdText.textContent = `⏳ กำลังรอ... ${remaining} วินาที`;
+            } else {
+              clearInterval(timer);
+              el.remove();
+              cdText.textContent = 'ลองใหม่อีกครั้ง...';
+              send(value); // auto-retry
+            }
+          }, 1000);
+          return;
+        } else {
           add(`เกิดข้อผิดพลาด: ${error.message}`, 'bot', null, false, true);
         }
       } finally {
