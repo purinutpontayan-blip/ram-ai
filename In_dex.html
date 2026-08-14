@@ -1,14 +1,25 @@
 <!doctype html>
 <html lang="th">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>RAM AI</title>
-  <link rel="icon" type="image/png" href="https://plain-apac-prod-public.komododecks.com/202608/14/HPO0SoDWzrZqRasCUb2F/image.png">
+  <link rel="icon" type="image/png"
+    href="https://plain-apac-prod-public.komododecks.com/202608/14/HPO0SoDWzrZqRasCUb2F/image.png">
   <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    (function () {
+      try {
+        var pref = localStorage.getItem('ram_ai_theme') || 'system';
+        var isDark = pref === 'dark' || (pref === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+      } catch (e) { }
+    })();
+  </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-  
+
   <style>
     :root {
       --ink: #1e293b;
@@ -23,22 +34,39 @@
       --shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
       --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
-    * { box-sizing: border-box; }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
       min-height: 100vh;
       color: var(--ink);
       font-family: 'Kanit', system-ui, -apple-system, sans-serif;
       background: radial-gradient(circle at top left, #fdf4f8, transparent 40%),
-                  radial-gradient(circle at bottom right, #ecfdf5, transparent 40%),
-                  #f8fafc;
+        radial-gradient(circle at bottom right, #ecfdf5, transparent 40%),
+        #f8fafc;
       overflow-x: hidden;
     }
-    ::-webkit-scrollbar { width: 8px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-    
+
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
     .app {
       width: min(1280px, 100%);
       height: 100vh;
@@ -50,6 +78,7 @@
       backdrop-filter: blur(20px);
       box-shadow: var(--shadow);
     }
+
     aside {
       position: relative;
       padding: 30px 20px 90px;
@@ -59,7 +88,14 @@
       flex-direction: column;
       min-height: 0;
     }
-    .brand-container { position: relative; width: 100%; flex-shrink: 0; margin-bottom: 8px; }
+
+    .brand-container {
+      position: relative;
+      width: 100%;
+      flex-shrink: 0;
+      margin-bottom: 8px;
+    }
+
     .brand {
       width: 100%;
       height: 72px;
@@ -67,15 +103,22 @@
       cursor: pointer;
       transition: opacity 0.2s;
     }
-    .brand:hover { opacity: 0.8; }
-    .brand.code-mode { background-image: url('https://plain-apac-prod-public.komododecks.com/202608/14/hbJ5do2LkbfyJj8lw5xJ/image.png'); }
+
+    .brand:hover {
+      opacity: 0.8;
+    }
+
+    .brand.code-mode {
+      background-image: url('https://plain-apac-prod-public.komododecks.com/202608/14/hbJ5do2LkbfyJj8lw5xJ/image.png');
+    }
+
     .brand-arrow {
       position: absolute;
       bottom: 4px;
       right: 8px;
       width: 22px;
       height: 22px;
-      background: rgba(16,185,129,0.12);
+      background: rgba(16, 185, 129, 0.12);
       border-radius: 50%;
       display: flex;
       align-items: center;
@@ -83,31 +126,62 @@
       pointer-events: none;
       transition: transform 0.3s ease, background 0.2s;
     }
-    .brand-container:hover .brand-arrow { background: rgba(16,185,129,0.25); }
-    .mode-dropdown.show ~ * .brand-arrow,
-    .brand-arrow.open { transform: rotate(180deg); background: rgba(16,185,129,0.25); }
+
+    .brand-container:hover .brand-arrow {
+      background: rgba(16, 185, 129, 0.25);
+    }
+
+    .mode-dropdown.show~* .brand-arrow,
+    .brand-arrow.open {
+      transform: rotate(180deg);
+      background: rgba(16, 185, 129, 0.25);
+    }
+
     .mode-dropdown {
       position: absolute;
-      top: 80px; left: 10px; right: 10px;
+      top: 80px;
+      left: 10px;
+      right: 10px;
       background: rgba(255, 255, 255, 0.98);
       backdrop-filter: blur(10px);
       border: 1px solid var(--line);
       border-radius: 14px;
       padding: 8px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
       display: none;
       flex-direction: column;
       gap: 4px;
       z-index: 100;
     }
-    .mode-dropdown.show { display: flex; animation: slideUp 0.2s ease-out; }
-    .mode-option {
-      border: 0; background: transparent; padding: 10px 14px; border-radius: 10px;
-      text-align: left; font: inherit; font-size: 14px; font-weight: 500;
-      color: var(--muted); cursor: pointer; transition: var(--transition);
+
+    .mode-dropdown.show {
+      display: flex;
+      animation: slideUp 0.2s ease-out;
     }
-    .mode-option:hover { background: #f1f5f9; color: var(--ink); }
-    .mode-option.active { background: rgba(16, 185, 129, 0.1); color: var(--deep-green); }
+
+    .mode-option {
+      border: 0;
+      background: transparent;
+      padding: 10px 14px;
+      border-radius: 10px;
+      text-align: left;
+      font: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .mode-option:hover {
+      background: #f1f5f9;
+      color: var(--ink);
+    }
+
+    .mode-option.active {
+      background: rgba(16, 185, 129, 0.1);
+      color: var(--deep-green);
+    }
 
     .code-container {
       background: #1e293b;
@@ -119,6 +193,7 @@
       color: #f8fafc;
       text-align: left;
     }
+
     .code-header {
       display: flex;
       justify-content: space-between;
@@ -128,45 +203,95 @@
       color: #94a3b8;
       font-size: 12px;
     }
-    .code-actions { display: flex; gap: 8px; }
-    .code-actions button {
-      background: rgba(255,255,255,0.1); border: 0; color: #fff; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; font-family: inherit;
+
+    .code-actions {
+      display: flex;
+      gap: 8px;
     }
-    .code-actions button:hover { background: rgba(255,255,255,0.2); }
-    .code-container pre { margin: 0; padding: 12px; overflow-x: auto; }
-    
+
+    .code-actions button {
+      background: rgba(255, 255, 255, 0.1);
+      border: 0;
+      color: #fff;
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      font-family: inherit;
+    }
+
+    .code-actions button:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .code-container pre {
+      margin: 0;
+      padding: 12px;
+      overflow-x: auto;
+    }
+
     .code-followup {
       margin-top: 16px;
       padding-top: 16px;
-      border-top: 1px solid rgba(0,0,0,0.08);
+      border-top: 1px solid rgba(0, 0, 0, 0.08);
       animation: slideUp 0.3s ease-out;
     }
+
     .code-followup p {
       margin: 0 0 10px;
       font-weight: 600;
       font-size: 14px;
       color: var(--ink);
     }
-    .followup-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    .followup-btns {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
     .followup-btn {
-      padding: 8px 14px; border: 1px solid var(--line); border-radius: 99px; background: #fff;
-      font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; transition: var(--transition);
+      padding: 8px 14px;
+      border: 1px solid var(--line);
+      border-radius: 99px;
+      background: #fff;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: var(--transition);
       color: var(--ink);
     }
-    .followup-btn:hover { background: #f8fafc; transform: translateY(-1px); box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-    .followup-btn.yes { background: var(--green); color: #fff; border-color: var(--green); }
-    .followup-btn.yes:hover { background: var(--deep-green); }
-    
-    .mark, .avatar.bot {
+
+    .followup-btn:hover {
+      background: #f8fafc;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    }
+
+    .followup-btn.yes {
+      background: var(--green);
+      color: #fff;
+      border-color: var(--green);
+    }
+
+    .followup-btn.yes:hover {
+      background: var(--deep-green);
+    }
+
+    .mark,
+    .avatar.bot {
       display: grid;
       place-items: center;
       background: transparent;
     }
+
     .avatar.bot {
       overflow: hidden;
       background: url('https://plain-apac-prod-public.komododecks.com/202608/14/ErLIGAxdzwZ7e3uXUnDh/image.png') center center / cover no-repeat;
       font-size: 0;
     }
+
     .mark {
       width: 38px;
       height: 38px;
@@ -174,6 +299,7 @@
       box-shadow: 0 8px 15px rgba(251, 113, 133, 0.3);
       font-size: 20px;
     }
+
     .new-chat {
       width: 100%;
       padding: 14px;
@@ -191,13 +317,16 @@
       justify-content: center;
       gap: 8px;
     }
+
     .new-chat:hover {
       transform: translateY(-2px);
       box-shadow: 0 15px 25px rgba(16, 185, 129, 0.3);
     }
+
     .new-chat:active {
       transform: translateY(0);
     }
+
     .label {
       margin: 30px 10px 10px;
       font-size: 13px;
@@ -206,6 +335,7 @@
       color: var(--muted);
       text-transform: uppercase;
     }
+
     .history {
       display: flex;
       flex-direction: column;
@@ -215,6 +345,7 @@
       overflow-y: auto;
       overflow-x: hidden;
     }
+
     .history-item {
       position: relative;
       display: flex;
@@ -222,8 +353,16 @@
       border-radius: 12px;
       transition: var(--transition);
     }
-    .history-item:hover { background: rgba(16, 185, 129, 0.1); transform: translateX(4px); }
-    .history-item:hover .del-btn { opacity: 1; }
+
+    .history-item:hover {
+      background: rgba(16, 185, 129, 0.1);
+      transform: translateX(4px);
+    }
+
+    .history-item:hover .del-btn {
+      opacity: 1;
+    }
+
     .history-item button {
       flex: 1;
       border: 0;
@@ -240,12 +379,16 @@
       white-space: nowrap;
       transition: var(--transition);
     }
-    .history-item button:hover { color: var(--deep-green); }
+
+    .history-item button:hover {
+      color: var(--deep-green);
+    }
+
     .del-btn {
       flex: 0 0 28px;
       height: 28px;
       border: 0;
-      background: rgba(251,113,133,0.12);
+      background: rgba(251, 113, 133, 0.12);
       color: var(--rose);
       border-radius: 8px;
       cursor: pointer;
@@ -255,8 +398,12 @@
       opacity: 0;
       transition: var(--transition);
     }
-    .del-btn:hover { background: var(--rose); color: #fff; }
-    
+
+    .del-btn:hover {
+      background: var(--rose);
+      color: #fff;
+    }
+
     /* Delete confirmation modal */
     .del-modal {
       position: fixed;
@@ -264,39 +411,98 @@
       display: none;
       place-items: center;
       padding: 20px;
-      background: rgba(15,23,42,0.6);
+      background: rgba(15, 23, 42, 0.6);
       backdrop-filter: blur(8px);
       z-index: 99;
     }
-    .del-modal.open { display: grid; animation: slideUp 0.2s ease-out; }
+
+    .del-modal.open {
+      display: grid;
+      animation: slideUp 0.2s ease-out;
+    }
+
     .del-dialog {
       width: min(400px, 100%);
       padding: 28px;
       border-radius: 24px;
       background: #fff;
-      box-shadow: 0 25px 75px rgba(0,0,0,0.2);
+      box-shadow: 0 25px 75px rgba(0, 0, 0, 0.2);
     }
-    .del-dialog h3 { margin: 0 0 8px; font-size: 18px; color: var(--ink); }
-    .del-dialog p { margin: 0 0 16px; color: var(--muted); font-size: 14px; line-height: 1.6; }
+
+    .del-dialog h3 {
+      margin: 0 0 8px;
+      font-size: 18px;
+      color: var(--ink);
+    }
+
+    .del-dialog p {
+      margin: 0 0 16px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
     .del-dialog input {
-      width: 100%; padding: 10px 14px; border: 1.5px solid var(--line);
-      border-radius: 12px; font: inherit; font-size: 15px; color: var(--ink);
-      outline: none; margin-bottom: 14px; transition: border-color 0.2s;
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid var(--line);
+      border-radius: 12px;
+      font: inherit;
+      font-size: 15px;
+      color: var(--ink);
+      outline: none;
+      margin-bottom: 14px;
+      transition: border-color 0.2s;
     }
-    .del-dialog input:focus { border-color: var(--rose); }
-    .del-dialog-btns { display: flex; gap: 10px; }
+
+    .del-dialog input:focus {
+      border-color: var(--rose);
+    }
+
+    .del-dialog-btns {
+      display: flex;
+      gap: 10px;
+    }
+
     .del-confirm {
-      flex: 1; padding: 10px; border: 0; border-radius: 12px;
-      background: var(--rose); color: #fff; font: inherit; font-weight: 600;
-      cursor: pointer; transition: var(--transition); opacity: 0.4; pointer-events: none;
+      flex: 1;
+      padding: 10px;
+      border: 0;
+      border-radius: 12px;
+      background: var(--rose);
+      color: #fff;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      opacity: 0.4;
+      pointer-events: none;
     }
-    .del-confirm.ready { opacity: 1; pointer-events: auto; }
-    .del-confirm.ready:hover { background: #e11d48; }
+
+    .del-confirm.ready {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .del-confirm.ready:hover {
+      background: #e11d48;
+    }
+
     .del-cancel {
-      padding: 10px 20px; border: 1px solid var(--line); border-radius: 12px;
-      background: #fff; color: var(--muted); font: inherit; cursor: pointer; transition: var(--transition);
+      padding: 10px 20px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+      color: var(--muted);
+      font: inherit;
+      cursor: pointer;
+      transition: var(--transition);
     }
-    .del-cancel:hover { background: #f8fafc; }
+
+    .del-cancel:hover {
+      background: #f8fafc;
+    }
+
     .settings {
       position: absolute;
       bottom: 24px;
@@ -316,17 +522,21 @@
       align-items: center;
       gap: 10px;
     }
+
     .settings:hover {
       background: #f8fafc;
       border-color: #cbd5e1;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     }
+
     .settings svg {
       transition: transform 0.5s ease;
     }
+
     .settings:hover svg {
       transform: rotate(90deg);
     }
+
     main {
       min-width: 0;
       display: flex;
@@ -334,6 +544,7 @@
       background: rgba(255, 255, 255, 0.4);
       height: 100vh;
     }
+
     header {
       display: flex;
       align-items: center;
@@ -345,7 +556,14 @@
       top: 0;
       z-index: 2;
     }
-    h1 { margin: 0; font-size: 18px; font-weight: 600; color: var(--ink); }
+
+    h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+
     .status {
       display: flex;
       align-items: center;
@@ -357,6 +575,7 @@
       padding: 6px 14px;
       border-radius: 20px;
     }
+
     .dot {
       width: 10px;
       height: 10px;
@@ -365,11 +584,21 @@
       box-shadow: 0 0 12px var(--green);
       animation: pulse 2s infinite;
     }
+
     @keyframes pulse {
-      0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-      70% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+      0% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+      }
+
+      70% {
+        box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+      }
+
+      100% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+      }
     }
+
     #messages {
       flex: 1;
       padding: 40px clamp(20px, 5vw, 80px);
@@ -379,12 +608,14 @@
       overflow-y: auto;
       scroll-behavior: smooth;
     }
+
     .welcome {
       max-width: 700px;
       margin: auto 0;
       text-align: center;
       animation: slideUp 0.6s ease-out;
     }
+
     .welcome h2 {
       margin: 0 0 16px;
       font-size: clamp(32px, 5vw, 56px);
@@ -395,12 +626,14 @@
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
+
     .welcome p {
       margin: 0;
       color: var(--muted);
       line-height: 1.8;
       font-size: 18px;
     }
+
     .suggestions {
       display: flex;
       flex-wrap: wrap;
@@ -408,6 +641,7 @@
       gap: 12px;
       margin-top: 32px;
     }
+
     .suggestions button {
       padding: 12px 20px;
       border: 1px solid var(--line);
@@ -418,8 +652,9 @@
       font-size: 15px;
       cursor: pointer;
       transition: var(--transition);
-      box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.02);
     }
+
     .suggestions button:hover {
       border-color: var(--rose);
       background: #fff0f5;
@@ -427,6 +662,7 @@
       transform: translateY(-2px);
       box-shadow: 0 6px 15px rgba(251, 113, 133, 0.15);
     }
+
     .message {
       display: flex;
       gap: 16px;
@@ -435,10 +671,12 @@
       opacity: 0;
       transform: translateY(20px);
     }
+
     .message.user {
       align-self: flex-end;
       flex-direction: row-reverse;
     }
+
     .avatar {
       display: grid;
       place-items: center;
@@ -449,15 +687,17 @@
       color: var(--muted);
       font-size: 14px;
       font-weight: 700;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
     }
+
     .user .avatar {
       background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
       color: #334155;
     }
+
     .bubble {
       padding: 16px 20px;
-      border: 1px solid rgba(255,255,255,0.5);
+      border: 1px solid rgba(255, 255, 255, 0.5);
       border-radius: 4px 20px 20px 20px;
       background: rgba(255, 255, 255, 0.9);
       backdrop-filter: blur(10px);
@@ -467,6 +707,7 @@
       font-size: 16px;
       color: var(--ink);
     }
+
     .user .bubble {
       border-radius: 20px 4px 20px 20px;
       background: var(--ink);
@@ -474,8 +715,12 @@
       border-color: transparent;
       box-shadow: 0 8px 20px rgba(30, 41, 59, 0.2);
     }
-    .bubble strong { font-weight: 700; color: inherit; }
-    
+
+    .bubble strong {
+      font-weight: 700;
+      color: inherit;
+    }
+
     .menu-btn {
       display: none;
       background: transparent;
@@ -484,6 +729,7 @@
       cursor: pointer;
       padding: 0;
     }
+
     .sidebar-overlay {
       position: fixed;
       inset: 0;
@@ -494,11 +740,12 @@
       pointer-events: none;
       transition: opacity 0.3s ease;
     }
+
     .sidebar-overlay.show {
       opacity: 1;
       pointer-events: auto;
     }
-    
+
     .attachment {
       display: block;
       max-width: 300px;
@@ -506,27 +753,55 @@
       margin: 0 0 12px;
       border-radius: 12px;
       object-fit: cover;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
       transition: transform 0.3s ease;
     }
-    .attachment:hover { transform: scale(1.02); }
-    
-    .loading-dots { display: flex; gap: 6px; align-items: center; height: 24px; }
+
+    .attachment:hover {
+      transform: scale(1.02);
+    }
+
+    .loading-dots {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      height: 24px;
+    }
+
     .loading-dots span {
-      width: 8px; height: 8px; border-radius: 50%; background: var(--green);
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
       animation: bounce 1.4s infinite ease-in-out both;
     }
-    .loading-dots span:nth-child(1) { animation-delay: -0.32s; }
-    .loading-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+    .loading-dots span:nth-child(1) {
+      animation-delay: -0.32s;
+    }
+
+    .loading-dots span:nth-child(2) {
+      animation-delay: -0.16s;
+    }
+
     @keyframes bounce {
-      0%, 80%, 100% { transform: scale(0); }
-      40% { transform: scale(1); }
+
+      0%,
+      80%,
+      100% {
+        transform: scale(0);
+      }
+
+      40% {
+        transform: scale(1);
+      }
     }
 
     .composer {
       padding: 20px clamp(20px, 5vw, 80px) 30px;
       background: linear-gradient(to top, #f8fafc 80%, transparent);
     }
+
     .preview {
       display: none;
       align-items: center;
@@ -538,16 +813,21 @@
       background: #fff;
       color: var(--ink);
       font-size: 14px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
       animation: slideUp 0.3s ease-out;
     }
-    .preview.show { display: flex; }
+
+    .preview.show {
+      display: flex;
+    }
+
     .preview img {
       width: 48px;
       height: 48px;
       border-radius: 10px;
       object-fit: cover;
     }
+
     .remove {
       margin-left: auto;
       border: 0;
@@ -561,11 +841,13 @@
       cursor: pointer;
       transition: var(--transition);
     }
+
     .remove:hover {
       background: var(--rose);
       color: #fff;
       transform: rotate(90deg);
     }
+
     .chat-form {
       display: flex;
       align-items: flex-end;
@@ -577,10 +859,12 @@
       box-shadow: var(--shadow);
       transition: var(--transition);
     }
+
     .chat-form:focus-within {
       border-color: var(--green);
       box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1), var(--shadow);
     }
+
     textarea {
       width: 100%;
       min-height: 48px;
@@ -594,7 +878,9 @@
       font-size: 16px;
       line-height: 1.5;
     }
-    .icon-btn, .send {
+
+    .icon-btn,
+    .send {
       flex: 0 0 48px;
       height: 48px;
       border: 0;
@@ -604,28 +890,37 @@
       cursor: pointer;
       transition: var(--transition);
     }
+
     .icon-btn {
       background: #f1f5f9;
       color: var(--muted);
     }
+
     .icon-btn:hover {
       background: #e2e8f0;
       color: var(--ink);
     }
+
     .send {
       background: var(--ink);
       color: #fff;
     }
+
     .send:hover {
       background: var(--green);
       transform: scale(1.05);
     }
-    .send:active { transform: scale(0.95); }
+
+    .send:active {
+      transform: scale(0.95);
+    }
+
     .send:disabled {
       background: #cbd5e1;
       cursor: not-allowed;
       transform: none;
     }
+
     .stop-btn {
       flex: 0 0 48px;
       height: 48px;
@@ -638,30 +933,54 @@
       background: var(--rose);
       color: #fff;
     }
-    .stop-btn.show { display: grid; }
-    .stop-btn:hover { background: #e11d48; transform: scale(1.05); }
-    .stop-btn:active { transform: scale(0.95); }
+
+    .stop-btn.show {
+      display: grid;
+    }
+
+    .stop-btn:hover {
+      background: #e11d48;
+      transform: scale(1.05);
+    }
+
+    .stop-btn:active {
+      transform: scale(0.95);
+    }
+
     .hint {
       margin: 16px 0 0;
       text-align: center;
       color: var(--muted);
       font-size: 13px;
     }
+
     .countdown-bubble {
       display: flex;
       flex-direction: column;
       align-items: flex-start;
       gap: 8px;
     }
+
     .countdown-clock {
       font-size: 36px;
       line-height: 1;
       animation: tickPulse 1s infinite;
     }
+
     @keyframes tickPulse {
-      0%, 100% { transform: scale(1); opacity: 1; }
-      50% { transform: scale(1.1); opacity: 0.7; }
+
+      0%,
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+
+      50% {
+        transform: scale(1.1);
+        opacity: 0.7;
+      }
     }
+
     .countdown-bar-wrap {
       width: 100%;
       height: 6px;
@@ -670,12 +989,14 @@
       overflow: hidden;
       min-width: 180px;
     }
+
     .countdown-bar {
       height: 100%;
       background: linear-gradient(90deg, var(--rose), var(--pink));
       border-radius: 4px;
       transition: width 1s linear;
     }
+
     .modal {
       position: fixed;
       inset: 0;
@@ -688,27 +1009,40 @@
       opacity: 0;
       transition: opacity 0.3s ease;
     }
+
     .modal.open {
       display: grid;
       opacity: 1;
     }
+
     .dialog {
       width: min(460px, 100%);
       padding: 32px;
       border-radius: 28px;
       background: var(--paper);
-      box-shadow: 0 25px 75px rgba(0,0,0,0.2);
+      box-shadow: 0 25px 75px rgba(0, 0, 0, 0.2);
       transform: scale(0.9);
       transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
-    .modal.open .dialog { transform: scale(1); }
+
+    .modal.open .dialog {
+      transform: scale(1);
+    }
+
     .dialog-head {
       display: flex;
       justify-content: space-between;
       align-items: center;
       margin-bottom: 24px;
     }
-    .dialog h2 { margin: 0; font-size: 22px; font-weight: 700; color: var(--ink); }
+
+    .dialog h2 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
     .close {
       border: 0;
       background: #f1f5f9;
@@ -721,7 +1055,13 @@
       cursor: pointer;
       transition: var(--transition);
     }
-    .close:hover { background: #e2e8f0; color: var(--ink); transform: rotate(90deg); }
+
+    .close:hover {
+      background: #e2e8f0;
+      color: var(--ink);
+      transform: rotate(90deg);
+    }
+
     .transfer-card {
       padding: 24px;
       border-radius: 20px;
@@ -729,6 +1069,7 @@
       text-align: center;
       border: 1px solid var(--line);
     }
+
     .mode {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -738,6 +1079,7 @@
       padding: 6px;
       border-radius: 16px;
     }
+
     .mode button {
       padding: 10px;
       border: 0;
@@ -749,12 +1091,13 @@
       cursor: pointer;
       transition: var(--transition);
     }
+
     .mode button.active {
       background: #fff;
       color: var(--ink);
-      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
     }
-    
+
     .qr {
       width: 220px;
       min-height: 220px;
@@ -762,47 +1105,71 @@
       padding: 12px;
       background: #fff;
       border-radius: 16px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
       display: flex;
       justify-content: center;
       align-items: center;
       overflow: hidden;
       position: relative;
     }
+
     .qr canvas {
       max-width: 100%;
       height: auto;
     }
+
     .qr #reader {
       width: 100%;
       border-radius: 8px;
     }
-    
+
     .transfer-card p {
       margin: 0;
       color: var(--muted);
       font-size: 14px;
       line-height: 1.6;
     }
+
     .notice {
       margin: 20px 0 0;
       color: var(--muted);
       font-size: 13px;
       text-align: center;
     }
-    
+
     @keyframes enter {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
+
     @keyframes slideUp {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
-    
+
     @media (max-width: 768px) {
-      .app { grid-template-columns: 1fr; }
-      .menu-btn { display: block; }
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .menu-btn {
+        display: block;
+      }
+
       aside {
         position: fixed;
         top: 0;
@@ -813,18 +1180,253 @@
         transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         background: rgba(255, 255, 255, 0.95);
       }
+
       aside.open {
         left: 0;
-        box-shadow: 4px 0 24px rgba(0,0,0,0.1);
+        box-shadow: 4px 0 24px rgba(0, 0, 0, 0.1);
       }
-      header { padding: 16px 20px; justify-content: flex-start; gap: 16px; }
-      .status { margin-left: auto; }
-      #messages { padding: 24px 20px; }
-      .composer { padding: 16px 20px 24px; }
-      .message { max-width: 90%; }
+
+      header {
+        padding: 16px 20px;
+        justify-content: flex-start;
+        gap: 16px;
+      }
+
+      .status {
+        margin-left: auto;
+      }
+
+      #messages {
+        padding: 24px 20px;
+      }
+
+      .composer {
+        padding: 16px 20px 24px;
+      }
+
+      .message {
+        max-width: 90%;
+      }
+    }
+    /* ===== Settings modal: theme picker + actions ===== */
+    .settings-section {
+      margin-bottom: 22px;
+    }
+
+    .settings-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .settings-label {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .theme-options {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .theme-option {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 14px 8px;
+      border: 1.5px solid var(--line);
+      border-radius: 14px;
+      background: var(--paper);
+      color: var(--muted);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .theme-option:hover {
+      border-color: var(--green);
+      color: var(--ink);
+    }
+
+    .theme-option.active {
+      border-color: var(--green);
+      background: rgba(16, 185, 129, 0.1);
+      color: var(--deep-green);
+      font-weight: 600;
+    }
+
+    .settings-action-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--paper);
+      color: var(--ink);
+      font: inherit;
+      font-weight: 500;
+      cursor: pointer;
+      text-align: left;
+      transition: var(--transition);
+    }
+
+    .settings-action-btn:hover {
+      background: rgba(16, 185, 129, 0.08);
+      border-color: var(--green);
+      color: var(--deep-green);
+    }
+
+    /* ===== Dark theme ===== */
+    html[data-theme="dark"] {
+      color-scheme: dark;
+    }
+
+    html[data-theme="dark"] {
+      --ink: #e2e8f0;
+      --muted: #94a3b8;
+      --paper: #1e293b;
+      --line: #334155;
+      --mint: rgba(16, 185, 129, 0.18);
+    }
+
+    html[data-theme="dark"] body {
+      background: radial-gradient(circle at top left, rgba(244, 114, 182, 0.08), transparent 40%),
+        radial-gradient(circle at bottom right, rgba(16, 185, 129, 0.08), transparent 40%),
+        #0f172a;
+    }
+
+    html[data-theme="dark"] .app {
+      background: rgba(15, 23, 42, 0.75);
+    }
+
+    html[data-theme="dark"] aside {
+      background: rgba(15, 23, 42, 0.6);
+    }
+
+    html[data-theme="dark"] .mode-dropdown {
+      background: rgba(30, 41, 59, 0.98);
+    }
+
+    html[data-theme="dark"] .mode-option:hover {
+      background: #334155;
+    }
+
+    html[data-theme="dark"] .followup-btn,
+    html[data-theme="dark"] .del-dialog,
+    html[data-theme="dark"] .del-cancel,
+    html[data-theme="dark"] .suggestions button,
+    html[data-theme="dark"] .preview,
+    html[data-theme="dark"] .chat-form {
+      background: #1e293b;
+    }
+
+    html[data-theme="dark"] .followup-btn:hover,
+    html[data-theme="dark"] .del-cancel:hover {
+      background: #334155;
+    }
+
+    html[data-theme="dark"] .suggestions button:hover {
+      border-color: var(--rose);
+      background: #3b1f2b;
+      color: #fda4af;
+    }
+
+    html[data-theme="dark"] main {
+      background: rgba(15, 23, 42, 0.5);
+    }
+
+    html[data-theme="dark"] header {
+      border-bottom-color: rgba(51, 65, 85, 0.6);
+    }
+
+    html[data-theme="dark"] .avatar {
+      background: #334155;
+    }
+
+    html[data-theme="dark"] .user .avatar {
+      background: linear-gradient(135deg, #334155, #475569);
+      color: #e2e8f0;
+    }
+
+    html[data-theme="dark"] .bubble {
+      background: rgba(30, 41, 59, 0.85);
+      border-color: rgba(71, 85, 105, 0.5);
+    }
+
+    html[data-theme="dark"] .user .bubble {
+      background: #0f172a;
+      color: #f1f5f9;
+    }
+
+    html[data-theme="dark"] .composer {
+      background: linear-gradient(to top, #0f172a 80%, transparent);
+    }
+
+    html[data-theme="dark"] .icon-btn {
+      background: #334155;
+      color: #cbd5e1;
+    }
+
+    html[data-theme="dark"] .icon-btn:hover {
+      background: #475569;
+      color: #f1f5f9;
+    }
+
+    html[data-theme="dark"] .send {
+      background: #0f172a;
+      color: #f1f5f9;
+    }
+
+    html[data-theme="dark"] .send:disabled {
+      background: #475569;
+    }
+
+    html[data-theme="dark"] ::-webkit-scrollbar-thumb {
+      background: #475569;
+    }
+
+    html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+      background: #64748b;
+    }
+
+    html[data-theme="dark"] .transfer-card {
+      background: linear-gradient(145deg, #1e293b, #0f172a);
+    }
+
+    html[data-theme="dark"] .close,
+    html[data-theme="dark"] .settings,
+    html[data-theme="dark"] .theme-option,
+    html[data-theme="dark"] .settings-action-btn {
+      background: #1e293b;
+    }
+
+    html[data-theme="dark"] .close:hover {
+      background: #334155;
+    }
+
+    html[data-theme="dark"] .settings:hover {
+      background: #334155;
+      border-color: #475569;
+    }
+
+    html[data-theme="dark"] .theme-option.active {
+      background: rgba(16, 185, 129, 0.18);
+    }
+
+    html[data-theme="dark"] .settings-action-btn:hover {
+      background: rgba(16, 185, 129, 0.15);
     }
   </style>
 </head>
+
 <body>
   <div class="app">
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -832,7 +1434,8 @@
       <div class="brand-container">
         <div class="brand" id="brandLogo" title="คลิกเพื่อเปลี่ยนโหมด"></div>
         <div class="brand-arrow" id="brandArrow">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
             <polyline points="6 9 12 15 18 9"></polyline>
           </svg>
         </div>
@@ -842,7 +1445,11 @@
         </div>
       </div>
       <button class="new-chat" id="newChat">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+          stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
         แชตใหม่
       </button>
       <div class="label">บทสนทนาล่าสุด</div>
@@ -850,14 +1457,25 @@
         <!-- History buttons will load here -->
       </div>
       <button class="settings" id="settings">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path
+            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+          </path>
+        </svg>
         ตั้งค่า
       </button>
     </aside>
     <main>
       <header>
         <button class="menu-btn" id="menuBtn" aria-label="เมนู">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
         </button>
         <span class="status"><i class="dot"></i> RAM AI ขับเคลื่อนโดย Gemini</span>
       </header>
@@ -869,20 +1487,35 @@
           <img id="previewImage" alt="ตัวอย่างรูปที่แนบ" />
           <span id="fileName"></span>
           <button class="remove" id="removeFile" title="ลบรูป">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
           </button>
         </div>
         <form class="chat-form" id="chatForm">
           <label class="icon-btn" title="แนบรูป">
             <input id="imageInput" type="file" accept="image/*" hidden />
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <circle cx="8.5" cy="8.5" r="1.5"></circle>
+              <polyline points="21 15 16 10 5 21"></polyline>
+            </svg>
           </label>
           <textarea id="prompt" placeholder="พิมพ์โจทย์หรือคำถามของคุณ..." aria-label="ข้อความ" rows="1"></textarea>
           <button class="send" id="sendBtn" aria-label="ส่งข้อความ" type="submit">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
           </button>
           <button class="stop-btn" id="stopBtn" type="button" aria-label="หยุด" title="หยุดการตอบ">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <rect x="4" y="4" width="16" height="16" rx="2" />
+            </svg>
           </button>
         </form>
         <p class="hint">© RAM AI 2026</p>
@@ -893,12 +1526,50 @@
   <!-- Delete Chat Confirmation Modal -->
   <div class="del-modal" id="delModal">
     <div class="del-dialog">
-      <h3>🗑️ ลบบทสนทนา</h3>
-      <p>พิมพ์ <strong>"ลบแชทนี้"</strong> เพื่อยืนยันการลบ<br/><span style="color:var(--rose);font-size:13px;">การลบจะไม่สามารถกู้คืนได้</span></p>
+      <h3>ลบบทสนทนา</h3>
+      <p>พิมพ์ <strong>"ลบแชทนี้"</strong> เพื่อยืนยันการลบ<br /><span
+          style="color:var(--rose);font-size:13px;">การลบจะไม่สามารถกู้คืนได้</span></p>
       <input type="text" id="delInput" placeholder="ลบแชทนี้" autocomplete="off" />
       <div class="del-dialog-btns">
         <button class="del-cancel" id="delCancel">ยกเลิก</button>
         <button class="del-confirm" id="delConfirm">ลบเลย</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div class="modal" id="settingsModal" role="dialog" aria-modal="true" aria-labelledby="settingsModalTitle">
+    <div class="dialog">
+      <div class="dialog-head">
+        <h2 id="settingsModalTitle">ตั้งค่า</h2>
+        <button class="close" id="closeSettingsModal" aria-label="ปิด">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-label">ธีม</div>
+        <div class="theme-options" id="themeOptions">
+          <button class="theme-option" data-theme-choice="light" type="button">สว่าง</button>
+          <button class="theme-option" data-theme-choice="dark" type="button">มืด</button>
+          <button class="theme-option" data-theme-choice="system" type="button">ตามอุปกรณ์</button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-label">ข้อมูล</div>
+        <button class="settings-action-btn" id="openTransferBtn" type="button">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+          โอนย้ายข้อมูล
+        </button>
       </div>
     </div>
   </div>
@@ -908,7 +1579,11 @@
       <div class="dialog-head">
         <h2 id="modalTitle">โอนย้ายข้อมูลผ่าน QR Code</h2>
         <button class="close" id="closeModal" aria-label="ปิด">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
         </button>
       </div>
       <div class="transfer-card">
@@ -916,20 +1591,20 @@
           <button class="active" data-mode="receive">รับข้อมูล</button>
           <button data-mode="send">โอนย้ายข้อมูล</button>
         </div>
-        
+
         <div class="qr" id="qr" aria-label="QR Code">
           <canvas id="qrCanvas" style="display: none;"></canvas>
           <div id="reader" style="display: none;"></div>
         </div>
-        
+
         <div id="progressUi" style="display: none; padding: 10px 0;">
-           <h3 id="progressText" style="margin:0 0 10px; font-size:16px; color:var(--ink);">กำลังโอนย้ายข้อมูล 0%</h3>
-           <div style="width:100%; background:#e2e8f0; border-radius:10px; overflow:hidden; height:12px;">
-             <div id="progressBar" style="width:0%; background:var(--green); height:100%; transition:width 0.2s;"></div>
-           </div>
-           <p style="margin:12px 0 0; color:var(--rose); font-size:14px; font-weight:500;">กรุณาเปิดเว็บนี้ไว้ห้ามปิด</p>
+          <h3 id="progressText" style="margin:0 0 10px; font-size:16px; color:var(--ink);">กำลังโอนย้ายข้อมูล 0%</h3>
+          <div style="width:100%; background:#e2e8f0; border-radius:10px; overflow:hidden; height:12px;">
+            <div id="progressBar" style="width:0%; background:var(--green); height:100%; transition:width 0.2s;"></div>
+          </div>
+          <p style="margin:12px 0 0; color:var(--rose); font-size:14px; font-weight:500;">กรุณาเปิดเว็บนี้ไว้ห้ามปิด</p>
         </div>
-        
+
         <p id="qrText">ใช้กล้องสแกน QR จากเครื่องเดิมเพื่อรับประวัติแชตครับ</p>
       </div>
     </div>
@@ -939,13 +1614,13 @@
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     const API_BASE = isLocal ? `http://${window.location.hostname}:10000` : '';
     const messages = document.querySelector('#messages'),
-          prompt = document.querySelector('#prompt'),
-          history = document.querySelector('#history'),
-          imageInput = document.querySelector('#imageInput'),
-          preview = document.querySelector('#preview'),
-          previewImage = document.querySelector('#previewImage'),
-          fileName = document.querySelector('#fileName');
-          
+      prompt = document.querySelector('#prompt'),
+      history = document.querySelector('#history'),
+      imageInput = document.querySelector('#imageInput'),
+      preview = document.querySelector('#preview'),
+      previewImage = document.querySelector('#previewImage'),
+      fileName = document.querySelector('#fileName');
+
     let attachment = null;
     let isGenerating = false;
     let currentAbortController = null;
@@ -973,13 +1648,13 @@
         currentAbortController = null;
       }
     };
-    
+
     // Multi-chat State management
     let appState = {
       activeChatId: null,
       chats: [] // Array of { id: string, title: string, conversation: [] }
     };
-    
+
     // Welcome message HTML
     function getWelcomeHTML() {
       if (appState.currentAppMode === 'code') {
@@ -1018,7 +1693,7 @@
         chats: appState.chats, // NOW SAVING IMAGES AS WELL (inlineData is not stripped)
         currentAppMode: appState.currentAppMode || 'chat'
       };
-      
+
       try {
         localStorage.setItem('ram_ai_chat', JSON.stringify(stateToSave));
       } catch (e) {
@@ -1052,7 +1727,7 @@
           console.error('Error loading chat:', e);
         }
       }
-      
+
       if (!appState.currentAppMode) appState.currentAppMode = 'chat';
       updateModeUI();
       loadActiveChatUI();
@@ -1061,7 +1736,10 @@
 
     function renderHistory() {
       history.innerHTML = '';
-      if (appState.chats.length === 0) {
+      const currentAppMode = appState.currentAppMode || 'chat';
+      const visibleChats = appState.chats.filter(c => (c.mode || 'chat') === currentAppMode);
+
+      if (visibleChats.length === 0) {
         const item = document.createElement('button');
         item.textContent = 'ยังไม่มีประวัติแชต';
         item.disabled = true;
@@ -1071,10 +1749,10 @@
         return;
       }
 
-      appState.chats.forEach(chat => {
+      visibleChats.forEach(chat => {
         const wrap = document.createElement('div');
         wrap.className = 'history-item';
-        
+
         const item = document.createElement('button');
         item.textContent = chat.title;
         if (chat.id === appState.activeChatId) {
@@ -1089,7 +1767,7 @@
           }
           if (window.innerWidth <= 768) document.getElementById('sidebarOverlay').click();
         };
-        
+
         const delBtn = document.createElement('button');
         delBtn.className = 'del-btn';
         delBtn.title = 'ลบแชทนี้';
@@ -1098,7 +1776,7 @@
           e.stopPropagation();
           openDelModal(chat.id);
         };
-        
+
         wrap.append(item, delBtn);
         history.append(wrap);
       });
@@ -1185,7 +1863,7 @@
       document.querySelectorAll('.mode-option').forEach(b => {
         b.classList.toggle('active', b.dataset.appMode === currentAppMode);
       });
-      
+
       if (currentAppMode === 'code') {
         document.getElementById('brandLogo').classList.add('code-mode');
         document.querySelector('.status').innerHTML = '<i class="dot"></i> RAM CODE ขับเคลื่อนโดย Gemini';
@@ -1215,7 +1893,7 @@
             alert('โอนย้ายข้อมูลสำเร็จ!');
             location.reload();
           } else throw new Error();
-        } catch(e) {
+        } catch (e) {
           if (e.message === 'token_not_found') {
             alert('ลิงก์หมดอายุหรือไม่ถูกต้อง กรุณาขอไฟล์ QR ใหม่จากเครื่องเดิมครับ');
           } else {
@@ -1237,7 +1915,7 @@
         html5QrcodeScanner.clear().catch(e => console.error(e));
         html5QrcodeScanner = null;
       }
-      
+
       qrCanvas.style.display = 'none';
       readerDiv.style.display = 'none';
       progressUi.style.display = 'none';
@@ -1245,68 +1923,68 @@
 
       if (mode === 'send') {
         qrText.textContent = 'กำลังเตรียม QR Code... (กำลังอัปโหลดข้อมูล)';
-        
+
         // Generate a random 6-character short token
         const token = Math.random().toString(36).substr(2, 6).toUpperCase();
-        
+
         fetch(`${API_BASE}/api/transfer/upload`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token, appState })
         })
-        .then(res => res.json())
-        .then(data => {
-          if (data.success) {
-            qrCanvas.style.display = 'block';
-            qrText.textContent = 'ให้อุปกรณ์ใหม่สแกน QR นี้เพื่อรับประวัติแชตครับ (อายุ 10 นาที)';
-            const receiveUrl = `${window.location.origin}${window.location.pathname}?token=${token}`;
-            new QRious({
-              element: qrCanvas,
-              value: receiveUrl,
-              size: 220,
-              background: 'white',
-              foreground: '#1e293b'
-            });
-          } else {
-            qrText.textContent = 'สร้าง QR ล้มเหลว กรุณาลองอีกครั้ง';
-          }
-        })
-        .catch(e => {
-          qrText.textContent = 'ล้มเหลวในการเชื่อมต่อกับ Server กรุณาลองอีกครั้ง';
-        });
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              qrCanvas.style.display = 'block';
+              qrText.textContent = 'ให้อุปกรณ์ใหม่สแกน QR นี้เพื่อรับประวัติแชตครับ (อายุ 10 นาที)';
+              const receiveUrl = `${window.location.origin}${window.location.pathname}?token=${token}`;
+              new QRious({
+                element: qrCanvas,
+                value: receiveUrl,
+                size: 220,
+                background: 'white',
+                foreground: '#1e293b'
+              });
+            } else {
+              qrText.textContent = 'สร้าง QR ล้มเหลว กรุณาลองอีกครั้ง';
+            }
+          })
+          .catch(e => {
+            qrText.textContent = 'ล้มเหลวในการเชื่อมต่อกับ Server กรุณาลองอีกครั้ง';
+          });
 
       } else {
         readerDiv.style.display = 'block';
         qrText.textContent = 'ใช้กล้องสแกน QR จากเครื่องเดิมเพื่อรับประวัติแชตครับ';
-        
-        html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 180, height: 180} }, false);
+
+        html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 180, height: 180 } }, false);
         html5QrcodeScanner.render((decodedText) => {
           // Extract token from scanned text (could be full URL or just token)
           let token = decodedText.trim();
-          try { token = new URL(decodedText).searchParams.get('token') || token; } catch(e) {}
-          
+          try { token = new URL(decodedText).searchParams.get('token') || token; } catch (e) { }
+
           // Pause scanning
           html5QrcodeScanner.clear();
           readerDiv.style.display = 'none';
           qrText.style.display = 'none';
           progressUi.style.display = 'block';
-          
+
           document.getElementById('progressText').textContent = 'กำลังโอนย้ายข้อมูล 0%';
           document.getElementById('progressBar').style.width = '0%';
-          
+
           const xhr = new XMLHttpRequest();
           xhr.open('GET', `${API_BASE}/api/transfer/download?token=${token}`);
-          
+
           xhr.onprogress = (e) => {
             if (e.lengthComputable) {
               const percent = Math.round((e.loaded / e.total) * 100);
               document.getElementById('progressText').textContent = `กำลังโอนย้ายข้อมูล ${percent}%`;
               document.getElementById('progressBar').style.width = `${percent}%`;
             } else {
-              document.getElementById('progressText').textContent = `กำลังโอนย้ายข้อมูล... (${Math.round(e.loaded/1024)}KB)`;
+              document.getElementById('progressText').textContent = `กำลังโอนย้ายข้อมูล... (${Math.round(e.loaded / 1024)}KB)`;
             }
           };
-          
+
           xhr.onload = () => {
             if (xhr.status === 200) {
               try {
@@ -1318,7 +1996,7 @@
                   alert("โอนย้ายข้อมูลสำเร็จ!");
                   location.reload();
                 } else throw new Error();
-              } catch(e) {
+              } catch (e) {
                 alert("ล้มเหลวกรุณาลองอีกครั้ง");
                 location.reload();
               }
@@ -1327,17 +2005,17 @@
               location.reload();
             }
           };
-          
+
           xhr.onerror = () => {
             alert("ล้มเหลวกรุณาลองอีกครั้ง");
             location.reload();
           };
-          
+
           xhr.onabort = () => {
             alert("ล้มเหลวกรุณาลองอีกครั้ง");
             location.reload();
           };
-          
+
           xhr.send();
 
         }, (error) => {
@@ -1349,7 +2027,7 @@
     function attach(file) {
       if (!file) return;
       const isText = !file.type.startsWith('image/');
-      
+
       if (isText && appState.currentAppMode !== 'code') {
         return alert('โหมดปกติรองรับเฉพาะไฟล์รูปภาพครับ หากต้องการอัปโหลดโค้ด กรุณาเลือกโหมด RAM CODE');
       }
@@ -1364,7 +2042,7 @@
             isText: true
           };
           previewImage.style.display = 'none';
-          fileName.textContent = '📄 ' + file.name;
+          fileName.textContent = file.name;
           preview.classList.add('show');
         };
         reader.readAsText(file);
@@ -1409,18 +2087,18 @@
     async function answer(text, file, location) {
       const activeChat = getActiveChat();
       const parts = [];
-      
+
       let fullText = text || '';
       if (file && file.isText) {
         fullText = `ไฟล์แนบ: ${file.name}\n\`\`\`\n${file.textContent}\n\`\`\`\n\n` + fullText;
       }
-      
+
       if (fullText) parts.push({ text: fullText });
       if (file && !file.isText) parts.push({ inlineData: { mimeType: file.mimeType, data: file.data } });
-      
+
       activeChat.conversation.push({ role: 'user', parts });
       saveState();
-      
+
       currentAbortController = new AbortController();
       let response;
       try {
@@ -1434,11 +2112,11 @@
         if (err.name === 'AbortError') throw new Error('__ABORTED__');
         throw new Error('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาตรวจสอบว่าได้เปิดรัน node server.js แล้วหรือยัง');
       }
-      
+
       const data = await response.json();
       if (response.status === 429) throw new Error('กำลังรอรีเซ็ต... โปรดรอสักครู่แล้วลองใหม่อีกครั้งครับ');
       if (!response.ok) throw new Error(data.error || 'ไม่สามารถติดต่อ Gemini ได้');
-      
+
       activeChat.conversation.push({ role: 'model', parts: [{ text: data.text }] });
       saveState(); // save after bot replies
       return data.text;
@@ -1449,9 +2127,9 @@
       el.className = `message ${role}`;
       el.innerHTML = `<div class="avatar ${role === 'bot' ? 'bot' : ''}">${role === 'bot' ? '' : 'คุณ'}</div><div class="bubble"></div>`;
       const bubble = el.querySelector('.bubble');
-      
+
       const elementsToAppend = [];
-      
+
       if (file && !file.isText) {
         const img = document.createElement('img');
         img.className = 'attachment';
@@ -1459,35 +2137,35 @@
         img.alt = 'รูปโจทย์ที่แนบ';
         elementsToAppend.push(img);
       }
-      
+
       if (text) {
         const blocks = text.split(/```([a-zA-Z0-9_\-+]*)\r?\n([\s\S]*?)```/g);
-        
+
         if (blocks.length > 1) {
           for (let i = 0; i < blocks.length; i++) {
             if (i % 3 === 0) { // Text part
               const p = blocks[i];
               if (p) {
-                 const textParts = p.split(/(\*\*.*?\*\*)/g);
-                 textParts.forEach(part => {
-                   if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
-                     const strong = document.createElement('strong');
-                     strong.textContent = part.slice(2, -2);
-                     elementsToAppend.push(strong);
-                   } else if (part) {
-                     elementsToAppend.push(document.createTextNode(part));
-                   }
-                 });
+                const textParts = p.split(/(\*\*.*?\*\*)/g);
+                textParts.forEach(part => {
+                  if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
+                    const strong = document.createElement('strong');
+                    strong.textContent = part.slice(2, -2);
+                    elementsToAppend.push(strong);
+                  } else if (part) {
+                    elementsToAppend.push(document.createTextNode(part));
+                  }
+                });
               }
             } else if (i % 3 === 1) { // Code part starts
-               const lang = blocks[i] || 'code';
-               const code = blocks[i+1];
-               const codeContainer = document.createElement('div');
-               codeContainer.className = 'code-container';
-               
-               const isWebCode = lang.toLowerCase() === 'html' || lang.toLowerCase() === 'html/css/js' || lang.toLowerCase() === 'xml' || lang.toLowerCase() === 'svg';
-               
-               codeContainer.innerHTML = `
+              const lang = blocks[i] || 'code';
+              const code = blocks[i + 1];
+              const codeContainer = document.createElement('div');
+              codeContainer.className = 'code-container';
+
+              const isWebCode = lang.toLowerCase() === 'html' || lang.toLowerCase() === 'html/css/js' || lang.toLowerCase() === 'xml' || lang.toLowerCase() === 'svg';
+
+              codeContainer.innerHTML = `
                  <div class="code-reveal-btn" style="padding: 12px; text-align: center; background: #0f172a; cursor: pointer; color: var(--green); font-weight: 600; font-size: 14px; transition: var(--transition);">
                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: text-bottom; margin-right: 6px;"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
                    คลิกเพื่อดูโค้ด (${lang})
@@ -1504,47 +2182,47 @@
                    <pre><code class="language-${lang}">${code.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code></pre>
                  </div>
                `;
-               
-               const revealBtn = codeContainer.querySelector('.code-reveal-btn');
-               revealBtn.onmouseover = () => revealBtn.style.background = '#1e293b';
-               revealBtn.onmouseout = () => revealBtn.style.background = '#0f172a';
-               revealBtn.onclick = function() {
-                 this.style.display = 'none';
-                 codeContainer.querySelector('.code-content').style.display = 'block';
-               };
-               
-               codeContainer.querySelector('.copy-btn').onclick = () => {
-                 navigator.clipboard.writeText(code);
-                 codeContainer.querySelector('.copy-btn').textContent = 'Copied!';
-                 setTimeout(() => codeContainer.querySelector('.copy-btn').textContent = 'Copy', 2000);
-               };
-               
-               codeContainer.querySelector('.download-btn').onclick = () => {
-                 const blob = new Blob([code], { type: 'text/plain' });
-                 const url = URL.createObjectURL(blob);
-                 const a = document.createElement('a');
-                 a.href = url;
-                 let ext = 'txt';
-                 if (lang === 'html') ext = 'html';
-                 if (lang === 'js' || lang === 'javascript') ext = 'js';
-                 if (lang === 'css') ext = 'css';
-                 if (lang === 'py' || lang === 'python') ext = 'py';
-                 a.download = `code.${ext}`;
-                 a.click();
-                 URL.revokeObjectURL(url);
-               };
-               
-               const previewBtn = codeContainer.querySelector('.preview-btn');
-               if (previewBtn) {
-                 previewBtn.onclick = () => {
-                   const previewWin = window.open('', '_blank');
-                   previewWin.document.write(code);
-                   previewWin.document.close();
-                 };
-               }
-               
-               elementsToAppend.push(codeContainer);
-               i++; // skip the next item because we consumed it (the code content)
+
+              const revealBtn = codeContainer.querySelector('.code-reveal-btn');
+              revealBtn.onmouseover = () => revealBtn.style.background = '#1e293b';
+              revealBtn.onmouseout = () => revealBtn.style.background = '#0f172a';
+              revealBtn.onclick = function () {
+                this.style.display = 'none';
+                codeContainer.querySelector('.code-content').style.display = 'block';
+              };
+
+              codeContainer.querySelector('.copy-btn').onclick = () => {
+                navigator.clipboard.writeText(code);
+                codeContainer.querySelector('.copy-btn').textContent = 'Copied!';
+                setTimeout(() => codeContainer.querySelector('.copy-btn').textContent = 'Copy', 2000);
+              };
+
+              codeContainer.querySelector('.download-btn').onclick = () => {
+                const blob = new Blob([code], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                let ext = 'txt';
+                if (lang === 'html') ext = 'html';
+                if (lang === 'js' || lang === 'javascript') ext = 'js';
+                if (lang === 'css') ext = 'css';
+                if (lang === 'py' || lang === 'python') ext = 'py';
+                a.download = `code.${ext}`;
+                a.click();
+                URL.revokeObjectURL(url);
+              };
+
+              const previewBtn = codeContainer.querySelector('.preview-btn');
+              if (previewBtn) {
+                previewBtn.onclick = () => {
+                  const previewWin = window.open('', '_blank');
+                  previewWin.document.write(code);
+                  previewWin.document.close();
+                };
+              }
+
+              elementsToAppend.push(codeContainer);
+              i++; // skip the next item because we consumed it (the code content)
             }
           }
         } else {
@@ -1561,9 +2239,9 @@
           });
         }
       }
-      
+
       messages.append(el);
-      
+
       if (animate) {
         isAnimating = true;
         (async () => {
@@ -1594,7 +2272,7 @@
               await new Promise(r => setTimeout(r, 50));
             }
           }
-          
+
           if (appState.currentAppMode === 'code' && hasCode && role === 'bot') {
             const followup = document.createElement('div');
             followup.className = 'code-followup';
@@ -1619,7 +2297,7 @@
             };
             bubble.append(followup);
           }
-          
+
           messages.scrollTop = messages.scrollHeight;
           isAnimating = false;
           processQueue();
@@ -1628,8 +2306,8 @@
         elementsToAppend.forEach(item => bubble.append(item));
         messages.scrollTop = messages.scrollHeight;
       }
-      
-      if(save) saveState();
+
+      if (save) saveState();
     }
 
     async function send(value) {
@@ -1644,10 +2322,10 @@
         prompt.style.height = '48px';
         return;
       }
-      
+
       document.getElementById('welcome')?.remove();
       const file = attachment;
-      
+
       // Ensure we have an active chat
       let activeChat = getActiveChat();
       let isNewChat = false;
@@ -1656,46 +2334,47 @@
         activeChat = {
           id: Date.now().toString(),
           title: 'กำลังตั้งชื่อ...',
-          conversation: []
+          conversation: [],
+          mode: appState.currentAppMode || 'chat'
         };
         appState.chats.unshift(activeChat);
         appState.activeChatId = activeChat.id;
         saveState();
       }
-      
+
       let displayMsg = text;
       if (file && file.isText) displayMsg = `[แนบไฟล์โค้ด: ${file.name}]\n` + text;
-      
+
       add(displayMsg || 'ช่วยดูรูปโจทย์นี้ให้หน่อยครับ', 'user', (file && !file.isText) ? file : null, false);
-      
+
       prompt.value = '';
       prompt.style.height = '48px';
       document.querySelector('#removeFile').click();
-      
+
       const loading = document.createElement('article');
       loading.className = 'message bot';
       loading.innerHTML = '<div class="avatar bot">R</div><div class="bubble"><div class="loading-dots"><span></span><span></span><span></span></div></div>';
       messages.append(loading);
       messages.scrollTop = messages.scrollHeight;
-      
+
       const thinkingTimer = setTimeout(() => {
         if (loading.parentNode) {
           loading.querySelector('.bubble').innerHTML = '<div style="display:flex; align-items:center; gap:8px;">กำลังคิด <div class="loading-dots"><span></span><span></span><span></span></div></div>';
           messages.scrollTop = messages.scrollHeight;
         }
       }, 5000);
-      
+
       setGenerating(true);
       try {
         let location = null;
         if (weatherQuestion(text)) {
           location = await requestLocation();
         }
-        
+
         const reply = await answer(text || 'ช่วยอธิบายโจทย์ในรูปอย่างเป็นขั้นตอน', file, location);
         loading.remove();
         add(reply, 'bot', null, false, true);
-        
+
         if (isNewChat) {
           const userMsg = text || 'ช่วยอธิบายโจทย์ในรูป';
           const replyForTitle = reply;
@@ -1705,7 +2384,7 @@
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ userMessage: userMsg, modelReply: replyForTitle })
             }).then(r => r.json()).then(data => {
-              if(data.title) {
+              if (data.title) {
                 activeChat.title = data.title.trim();
                 saveState();
               }
@@ -1732,18 +2411,18 @@
           `;
           messages.append(el);
           messages.scrollTop = messages.scrollHeight;
-          
+
           el.querySelector('.retry-btn').onclick = () => {
             el.remove();
-            
+
             // Cleanup the aborted user message from state and DOM
             const activeChat = getActiveChat();
             if (activeChat && activeChat.conversation.length > 0 && activeChat.conversation[activeChat.conversation.length - 1].role === 'user') {
-                activeChat.conversation.pop();
+              activeChat.conversation.pop();
             }
             const userMsgs = document.querySelectorAll('.message.user');
             if (userMsgs.length > 0) userMsgs[userMsgs.length - 1].remove();
-            
+
             // Retry sending
             send(value);
           };
@@ -1788,26 +2467,26 @@
       e.preventDefault();
       send(prompt.value);
     };
-    
+
     prompt.onkeydown = e => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         send(prompt.value);
       }
     };
-    
+
     document.querySelector('#newChat').onclick = () => {
       appState.activeChatId = null;
       saveState();
       loadActiveChatUI();
       if (window.innerWidth <= 768) document.getElementById('sidebarOverlay').click();
     };
-    
+
     // Mobile Sidebar Toggle
     const menuBtn = document.getElementById('menuBtn');
     const sidebar = document.querySelector('aside');
     const overlay = document.getElementById('sidebarOverlay');
-    
+
     menuBtn.onclick = () => {
       sidebar.classList.add('open');
       overlay.classList.add('show');
@@ -1816,30 +2495,76 @@
       sidebar.classList.remove('open');
       overlay.classList.remove('show');
     };
-    
+
     prompt.oninput = () => {
       prompt.style.height = '48px';
       prompt.style.height = Math.min(prompt.scrollHeight, 200) + 'px';
     };
 
     const modal = document.querySelector('#modal');
+    const settingsModal = document.querySelector('#settingsModal');
+
     document.querySelector('#settings').onclick = () => {
+      settingsModal.classList.add('open');
+    };
+
+    document.querySelector('#closeSettingsModal').onclick = () => {
+      settingsModal.classList.remove('open');
+    };
+
+    settingsModal.onclick = e => {
+      if (e.target === settingsModal) settingsModal.classList.remove('open');
+    };
+
+    document.querySelector('#openTransferBtn').onclick = () => {
+      settingsModal.classList.remove('open');
       modal.classList.add('open');
       document.querySelector('[data-mode="receive"]').click();
     };
-    
+
     document.querySelector('#closeModal').onclick = () => {
       modal.classList.remove('open');
       if (html5QrcodeScanner) html5QrcodeScanner.clear().catch(e => console.error(e));
     };
-    
+
     modal.onclick = e => {
       if (e.target === modal) {
         modal.classList.remove('open');
         if (html5QrcodeScanner) html5QrcodeScanner.clear().catch(e => console.error(e));
       }
     };
-    
+
+    // ===== Theme (light / dark / system) =====
+    const THEME_KEY = 'ram_ai_theme';
+    const darkMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+    function resolveTheme(pref) {
+      if (pref === 'system') return darkMediaQuery.matches ? 'dark' : 'light';
+      return pref;
+    }
+
+    function applyTheme(pref) {
+      document.documentElement.setAttribute('data-theme', resolveTheme(pref));
+      document.querySelectorAll('.theme-option').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.themeChoice === pref);
+      });
+    }
+
+    let currentThemePref = localStorage.getItem(THEME_KEY) || 'system';
+    applyTheme(currentThemePref);
+
+    darkMediaQuery.addEventListener('change', () => {
+      if (currentThemePref === 'system') applyTheme('system');
+    });
+
+    document.querySelectorAll('.theme-option').forEach(btn => {
+      btn.onclick = () => {
+        currentThemePref = btn.dataset.themeChoice;
+        localStorage.setItem(THEME_KEY, currentThemePref);
+        applyTheme(currentThemePref);
+      };
+    });
+
     document.querySelectorAll('[data-mode]').forEach(btn => {
       btn.onclick = () => {
         document.querySelectorAll('[data-mode]').forEach(b => b.classList.toggle('active', b === btn));
@@ -1848,4 +2573,5 @@
     });
   </script>
 </body>
+
 </html>
