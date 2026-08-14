@@ -8,7 +8,12 @@ const root = __dirname;
 const port = Number(process.env.PORT || 10000);
 const transfers = new Map();
 const sessions = new Map(); // sessionToken -> { email, name, picture, expiresAt }
-const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+// Google Client ID is public by design (used in frontend too), so it's safe to hardcode.
+// Still respects the env var if it's set (e.g. locally), falls back to this value on Render.
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '190011581672-rr8hlkjo5ceo8hng8renrbc7f0f42kmg.apps.googleusercontent.com';
+process.env.GOOGLE_CLIENT_ID = GOOGLE_CLIENT_ID;
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 function requireAuth(req) {
   const authHeader = req.headers['authorization'] || '';
@@ -70,6 +75,10 @@ http.createServer(async (req, res) => {
     return res.end();
   }
   if (req.method === 'GET' && req.url === '/') return fs.createReadStream(path.join(root, 'In_dex.html')).pipe(res);
+
+  if (req.method === 'GET' && req.url === '/api/config') {
+    return send(res, 200, { googleClientId: GOOGLE_CLIENT_ID });
+  }
 
   if (req.method === 'POST' && req.url === '/api/auth/google') {
     if (!process.env.GOOGLE_CLIENT_ID) return send(res, 500, { error: 'ยังไม่ได้ตั้งค่า GOOGLE_CLIENT_ID' });
