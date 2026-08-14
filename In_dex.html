@@ -8,6 +8,7 @@
   <link rel="icon" type="image/png"
     href="https://plain-apac-prod-public.komododecks.com/202608/14/HPO0SoDWzrZqRasCUb2F/image.png">
   <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
@@ -101,6 +102,16 @@
 
     .brand.code-mode {
       background-image: url('https://plain-apac-prod-public.komododecks.com/202608/14/hbJ5do2LkbfyJj8lw5xJ/image.png');
+    }
+
+    .brand.ai-pro-mode {
+      background-image: url('https://plain-apac-prod-public.komododecks.com/202608/14/i69lxvzX51CStkgFUcjx/image.png');
+      background-size: contain;
+    }
+
+    .brand.code-pro-mode {
+      background-image: url('https://plain-apac-prod-public.komododecks.com/202608/14/ssHjXRzSdacaf1HRtT6S/image.png');
+      background-size: contain;
     }
 
     .brand-arrow {
@@ -565,6 +576,25 @@
       background: var(--mint);
       padding: 6px 14px;
       border-radius: 20px;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header-pro-logo {
+      display: none;
+      width: 38px;
+      height: 38px;
+      object-fit: contain;
+      border-radius: 10px;
+      filter: drop-shadow(0 4px 8px rgba(16, 185, 129, 0.25));
+    }
+
+    .header-pro-logo.show {
+      display: block;
     }
 
     .dot {
@@ -1765,7 +1795,10 @@
             <line x1="3" y1="18" x2="21" y2="18"></line>
           </svg>
         </button>
-        <span class="status"><i class="dot"></i> RAM AI ขับเคลื่อนโดย Gemini</span>
+        <div class="header-right">
+          <img class="header-pro-logo" id="headerProLogo" alt="RAM PRO" />
+          <span class="status"><i class="dot"></i> RAM AI ขับเคลื่อนโดย Gemini</span>
+        </div>
       </header>
       <section id="messages">
         <!-- Messages will load here -->
@@ -1885,8 +1918,30 @@
         </button>
       </div>
 
+      <!-- Google Login is only required to redeem a PRO code. -->
+      <div class="settings-section">
+        <div class="settings-label">บัญชี Google</div>
+        <div id="googleLoginArea">
+          <button class="google-login-btn" id="googleLoginBtn" type="button">
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20" height="20"
+              alt="Google" style="display:block;flex-shrink:0;" />
+            เข้าสู่ระบบเพื่อปลดล็อก PRO
+          </button>
+        </div>
+        <div id="googleUserArea" style="display:none;">
+          <div class="google-user-info">
+            <img id="googleAvatar" src="" alt="" />
+            <div>
+              <div class="user-name" id="googleName"></div>
+              <div class="user-email" id="googleEmail"></div>
+            </div>
+            <button class="google-logout-btn" id="googleLogoutBtn" type="button">ออกจากระบบ</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Code Redemption Section -->
-      <div class="settings-section" id="redeemSection">
+      <div class="settings-section" id="redeemSection" style="display:none;">
         <div class="settings-label">กรอกโค้ดปลดล็อก PRO</div>
 
         <!-- Active PRO status cards -->
@@ -1964,6 +2019,54 @@
   <script>
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     const API_BASE = isLocal ? `http://${window.location.hostname}:10000` : '';
+
+    // Google Sign-In is initialized only when the user chooses to redeem a PRO code.
+    // Keeping this as the sole initialize() call prevents conflicting GSI instances.
+    let googleIdentityInitialized = false;
+
+    function waitForGoogleIdentity(attempts = 0) {
+      if (window.google?.accounts?.id) return Promise.resolve();
+      if (attempts >= 100) return Promise.reject(new Error('Google Identity Services did not load'));
+      return new Promise(resolve => setTimeout(resolve, 50))
+        .then(() => waitForGoogleIdentity(attempts + 1));
+    }
+
+    async function initializeGoogleIdentity() {
+      if (googleIdentityInitialized) return;
+      const [config] = await Promise.all([
+        fetch(`${API_BASE}/api/config`).then(res => {
+          if (!res.ok) throw new Error('Could not load Google sign-in configuration');
+          return res.json();
+        }),
+        waitForGoogleIdentity()
+      ]);
+      if (!config.googleClientId || config.googleClientId.includes('YOUR_GOOGLE_CLIENT_ID')) {
+        throw new Error('GOOGLE_CLIENT_ID is not configured');
+      }
+      google.accounts.id.initialize({
+        client_id: config.googleClientId,
+        callback: handleGoogleLogin,
+        auto_select: false
+      });
+      googleIdentityInitialized = true;
+    }
+
+    async function handleGoogleLogin(response) {
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/google`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ credential: response.credential })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'เข้าสู่ระบบไม่สำเร็จ');
+        localStorage.setItem('ram_session_token', data.token);
+        setGoogleUser(data.user);
+      } catch (error) {
+        console.error('Google login failed:', error);
+        alert('เข้าสู่ระบบ Google ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
+      }
+    }
 
     function authHeaders(extra = {}) {
       return extra;
@@ -2213,6 +2316,15 @@
       };
     });
 
+    function hasActiveProLogo(type) {
+      try {
+        const proState = JSON.parse(localStorage.getItem('ram_ai_pro') || '{}');
+        return Boolean(proState[type] && Date.now() < proState[type].expiry);
+      } catch {
+        return false;
+      }
+    }
+
     function updateModeUI() {
       const currentAppMode = appState.currentAppMode || 'chat';
       document.querySelectorAll('.mode-option').forEach(b => {
@@ -2220,17 +2332,41 @@
       });
 
       const modelWrap = document.getElementById('modelSelectorWrap');
+      const brandLogo = document.getElementById('brandLogo');
       if (currentAppMode === 'code') {
-        document.getElementById('brandLogo').classList.add('code-mode');
+        brandLogo.classList.add('code-mode');
+        brandLogo.classList.toggle('code-pro-mode', hasActiveProLogo('codePro'));
+        brandLogo.classList.remove('ai-pro-mode');
         document.querySelector('.status').innerHTML = '<i class="dot"></i> RAM CODE ขับเคลื่อนโดย Gemini';
         document.getElementById('imageInput').accept = "image/*,.txt,.js,.html,.css,.py,.cpp,.java,.cs";
         modelWrap.classList.add('show');
       } else {
-        document.getElementById('brandLogo').classList.remove('code-mode');
+        brandLogo.classList.remove('code-mode', 'code-pro-mode');
+        brandLogo.classList.toggle('ai-pro-mode', hasActiveProLogo('aiPro'));
         document.querySelector('.status').innerHTML = '<i class="dot"></i> RAM AI ขับเคลื่อนโดย Gemini';
         document.getElementById('imageInput').accept = "image/*";
         modelWrap.classList.remove('show');
       }
+      updateHeaderProLogo(currentAppMode);
+    }
+
+    function updateHeaderProLogo(mode) {
+      const logo = document.getElementById('headerProLogo');
+      if (!logo) return;
+      let proState = {};
+      try { proState = JSON.parse(localStorage.getItem('ram_ai_pro') || '{}'); } catch { }
+      const proKey = mode === 'code' ? 'codePro' : 'aiPro';
+      const hasPro = proState[proKey] && Date.now() < proState[proKey].expiry;
+      if (!hasPro) {
+        logo.classList.remove('show');
+        logo.removeAttribute('src');
+        return;
+      }
+      logo.src = mode === 'code'
+        ? 'https://plain-apac-prod-public.komododecks.com/202608/14/ssHjXRzSdacaf1HRtT6S/image.png'
+        : 'https://plain-apac-prod-public.komododecks.com/202608/14/i69lxvzX51CStkgFUcjx/image.png';
+      logo.alt = mode === 'code' ? 'RAM CODE PRO' : 'RAM AI PRO';
+      logo.classList.add('show');
     }
 
     // Init page
@@ -2935,6 +3071,37 @@
       return d.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
     }
 
+    let googleUser = null;
+
+    function loadGoogleUser() {
+      try { googleUser = JSON.parse(localStorage.getItem('ram_google_user') || 'null'); } catch { googleUser = null; }
+    }
+
+    function setGoogleUser(user) {
+      googleUser = user;
+      localStorage.setItem('ram_google_user', JSON.stringify(user));
+      updateGoogleUI();
+    }
+
+    function updateGoogleUI() {
+      const loginArea = document.getElementById('googleLoginArea');
+      const userArea = document.getElementById('googleUserArea');
+      const redeemSec = document.getElementById('redeemSection');
+      if (googleUser) {
+        loginArea.style.display = 'none';
+        userArea.style.display = 'block';
+        document.getElementById('googleAvatar').src = googleUser.picture || '';
+        document.getElementById('googleName').textContent = googleUser.name || '';
+        document.getElementById('googleEmail').textContent = googleUser.email || '';
+        redeemSec.style.display = 'block';
+      } else {
+        loginArea.style.display = 'block';
+        userArea.style.display = 'none';
+        redeemSec.style.display = 'none';
+      }
+      renderProStatus();
+    }
+
     function renderProStatus() {
       const area = document.getElementById('proStatusArea');
       area.innerHTML = '';
@@ -2959,6 +3126,25 @@
         }
       });
     }
+
+    document.getElementById('googleLoginBtn').onclick = async () => {
+      try {
+        await initializeGoogleIdentity();
+        google.accounts.id.prompt();
+      } catch (error) {
+        console.error('Google sign-in setup failed:', error);
+        alert('ไม่สามารถเปิด Google Login ได้ กรุณาตรวจสอบ GOOGLE_CLIENT_ID และการเชื่อมต่ออินเทอร์เน็ต');
+      }
+    };
+
+    document.getElementById('googleLogoutBtn').onclick = () => {
+      googleUser = null;
+      localStorage.removeItem('ram_google_user');
+      localStorage.removeItem('ram_session_token');
+      updateGoogleUI();
+    };
+
+    loadGoogleUser();
 
     document.getElementById('redeemSubmitBtn').onclick = () => {
       const code = document.getElementById('redeemCodeInput').value.trim().toUpperCase();
@@ -3007,10 +3193,11 @@
       statusEl.textContent = `🎉 ปลดล็อก RAM AI PRO และ RAM CODE PRO สำเร็จ! ใช้งานได้ถึง ${expDate}`;
       statusEl.className = 'redeem-status success';
       renderProStatus();
+      updateHeaderProLogo(appState.currentAppMode || 'chat');
       updateModelSelectorPro();
     };
 
-    renderProStatus();
+    updateGoogleUI();
 
     // ===== Model Selector =====
     let selectedCodeModel = localStorage.getItem('ram_code_model') || 'code1';
