@@ -209,6 +209,7 @@
       flex-direction: column;
       gap: 8px;
       flex: 1;
+      min-height: 0;
       overflow-y: auto;
       overflow-x: hidden;
     }
@@ -1485,16 +1486,30 @@
                const isWebCode = lang.toLowerCase() === 'html' || lang.toLowerCase() === 'html/css/js' || lang.toLowerCase() === 'xml' || lang.toLowerCase() === 'svg';
                
                codeContainer.innerHTML = `
-                 <div class="code-header">
-                   <span>${lang}</span>
-                   <div class="code-actions">
-                     ${isWebCode ? '<button class="preview-btn">Preview</button>' : ''}
-                     <button class="copy-btn">Copy</button>
-                     <button class="download-btn">Download</button>
-                   </div>
+                 <div class="code-reveal-btn" style="padding: 12px; text-align: center; background: #0f172a; cursor: pointer; color: var(--green); font-weight: 600; font-size: 14px; transition: var(--transition);">
+                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: text-bottom; margin-right: 6px;"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+                   คลิกเพื่อดูโค้ด (${lang})
                  </div>
-                 <pre><code class="language-${lang}">${code.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code></pre>
+                 <div class="code-content" style="display: none;">
+                   <div class="code-header">
+                     <span>${lang}</span>
+                     <div class="code-actions">
+                       ${isWebCode ? '<button class="preview-btn">Preview</button>' : ''}
+                       <button class="copy-btn">Copy</button>
+                       <button class="download-btn">Download</button>
+                     </div>
+                   </div>
+                   <pre><code class="language-${lang}">${code.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code></pre>
+                 </div>
                `;
+               
+               const revealBtn = codeContainer.querySelector('.code-reveal-btn');
+               revealBtn.onmouseover = () => revealBtn.style.background = '#1e293b';
+               revealBtn.onmouseout = () => revealBtn.style.background = '#0f172a';
+               revealBtn.onclick = function() {
+                 this.style.display = 'none';
+                 codeContainer.querySelector('.code-content').style.display = 'block';
+               };
                
                codeContainer.querySelector('.copy-btn').onclick = () => {
                  navigator.clipboard.writeText(code);
