@@ -884,7 +884,7 @@
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
           </button>
         </form>
-        <p class="hint">RAM AI ช่วยอธิบายและแนะนำวิธีทำ • กด Enter เพื่อส่ง</p>
+        <p class="hint">© RAM AI 2026</p>
       </div>
     </main>
   </div>
@@ -1677,6 +1677,13 @@
       messages.append(loading);
       messages.scrollTop = messages.scrollHeight;
       
+      const thinkingTimer = setTimeout(() => {
+        if (loading.parentNode) {
+          loading.querySelector('.bubble').innerHTML = '<div style="display:flex; align-items:center; gap:8px;">กำลังคิด <div class="loading-dots"><span></span><span></span><span></span></div></div>';
+          messages.scrollTop = messages.scrollHeight;
+        }
+      }, 5000);
+      
       setGenerating(true);
       try {
         let location = null;
@@ -1739,6 +1746,7 @@
           add(`เกิดข้อผิดพลาด: ${error.message}`, 'bot', null, false, true);
         }
       } finally {
+        clearTimeout(thinkingTimer);
         setGenerating(false);
         currentAbortController = null;
       }
