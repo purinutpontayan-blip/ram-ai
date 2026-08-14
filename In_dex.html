@@ -106,12 +106,16 @@
 
     .brand.ai-pro-mode {
       background-image: url('https://plain-apac-prod-public.komododecks.com/202608/14/i69lxvzX51CStkgFUcjx/image.png');
-      background-size: contain;
+      /* The supplied PRO artwork has generous transparent margins. */
+      background-size: 225% auto;
+      background-position: center;
     }
 
     .brand.code-pro-mode {
       background-image: url('https://plain-apac-prod-public.komododecks.com/202608/14/ssHjXRzSdacaf1HRtT6S/image.png');
-      background-size: contain;
+      /* Crop the transparent canvas visually so the actual mark fills the brand area. */
+      background-size: 225% auto;
+      background-position: center;
     }
 
     .brand-arrow {
