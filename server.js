@@ -89,7 +89,13 @@ http.createServer(async (req, res) => {
     } catch (e) { return send(res, 500, { error: e.message }); }
   }
 
-  if (req.method !== 'POST' || req.url !== '/api/chat') return send(res, 404, { error: 'Not found' });
+  if (req.method !== 'POST' || req.url !== '/api/chat') {
+    if (req.method === 'GET' && !req.url.startsWith('/api/')) {
+      res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' });
+      return fs.createReadStream(path.join(root, '404.html')).pipe(res);
+    }
+    return send(res, 404, { error: 'Not found' });
+  }
   if (!process.env.GEMINI_API_KEY) return send(res, 500, { error: 'ยังไม่ได้ตั้งค่า GEMINI_API_KEY' });
   let raw = ''; for await (const chunk of req) raw += chunk;
   try {
