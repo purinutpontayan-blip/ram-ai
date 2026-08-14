@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>404 — ไม่พบหน้านี้</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #FFFFFF;
+    --bg-radial: #F7F7F9;
+    --line: #E4E4E9;
+    --text: #16171C;
+    --muted: #7A7D87;
+    --accent: #8B7CF6;
+    --accent-dim: #5A4FB8;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: radial-gradient(circle at 50% 20%, var(--bg-radial), var(--bg) 65%);
+    color: var(--text);
+    font-family: 'IBM Plex Sans Thai', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Segoe UI', Arial, sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .stage {
+    width: 100%;
+    max-width: 640px;
+    padding: 40px 24px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    animation: rise 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .logos {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(10px, 3vw, 32px);
+    margin-bottom: clamp(28px, 6vw, 44px);
+    flex-wrap: nowrap;
+  }
+
+  .logos img {
+    height: clamp(140px, 32vw, 160px);
+    width: auto;
+    max-width: 36vw;
+    object-fit: contain;
+    filter: drop-shadow(0 0 18px rgba(139, 124, 246, 0.15));
+  }
+
+  .divider {
+    width: 1px;
+    height: 40px;
+    background: linear-gradient(to bottom, transparent, var(--line) 20%, var(--line) 80%, transparent);
+    position: relative;
+  }
+
+  .divider::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 10px 2px rgba(139, 124, 246, 0.6);
+  }
+
+  .code {
+    font-size: clamp(72px, 18vw, 128px);
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    margin: 0;
+    background: linear-gradient(180deg, #16171C 0%, #8A8792 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .headline {
+    margin: 18px 0 10px;
+    font-size: 20px;
+    font-weight: 400;
+    letter-spacing: 0;
+    color: var(--text);
+  }
+
+  .sub {
+    margin: 0 0 40px;
+    font-size: 15px;
+    font-weight: 300;
+    line-height: 1.7;
+    color: var(--muted);
+    max-width: 380px;
+  }
+
+  .cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 13px 28px;
+    border-radius: 999px;
+    background: var(--accent);
+    color: #FFFFFF;
+    font-weight: 500;
+    font-size: 14px;
+    text-decoration: none;
+    letter-spacing: 0.01em;
+    transition: transform 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
+    box-shadow: 0 0 0 0 rgba(139, 124, 246, 0);
+  }
+
+  .cta:hover {
+    background: #A297F8;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px -6px rgba(139, 124, 246, 0.55);
+  }
+
+  .cta:active {
+    transform: translateY(0);
+  }
+
+  .cta svg {
+    width: 15px;
+    height: 15px;
+    transition: transform 0.25s ease;
+  }
+
+  .cta:hover svg {
+    transform: translateX(3px);
+  }
+
+  .cta:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .stage { animation: none; }
+    .cta, .cta svg { transition: none; }
+  }
+
+  @media (max-width: 768px) {
+    .divider { height: 32px; }
+  }
+
+  @media (max-width: 420px) {
+    .headline { font-size: 17px; }
+    .sub { font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+  <main class="stage">
+    <div class="logos">
+      <img src="https://plain-apac-prod-public.komododecks.com/202608/14/HPO0SoDWzrZqRasCUb2F/image.png" alt="โลโก้ที่ 1">
+      <span class="divider" aria-hidden="true"></span>
+      <img src="https://plain-apac-prod-public.komododecks.com/202608/14/hbJ5do2LkbfyJj8lw5xJ/image.png" alt="โลโก้ที่ 2">
+    </div>
+
+    <p class="code">404</p>
+    <h1 class="headline">ไม่พบหน้าที่คุณกำลังมองหา</h1>
+    <p class="sub">ลิงก์นี้อาจถูกย้ายหรือไม่มีอยู่แล้ว ลองกลับไปที่หน้าหลักของเราดูนะ</p>
+
+    <a class="cta" href="https://ram-ai-web.onrender.com">
+      ไปที่หน้าหลัก
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+        <polyline points="12 5 19 12 12 19"></polyline>
+      </svg>
+    </a>
+  </main>
+</body>
+</html>
