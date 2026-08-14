@@ -21,16 +21,17 @@ async function callGemini(apiKey, body, overrideModel = null) {
   const url = model => `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
   const opts = { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey }, body: JSON.stringify(body) };
 
+  let res;
   if (overrideModel) {
-    let res = await fetch(url(overrideModel), opts);
-    return res;
+    res = await fetch(url(overrideModel), opts);
+    if (res.status !== 429 && res.status !== 503) return res;
+  } else {
+    // Try primary model
+    res = await fetch(url(PRIMARY_MODEL), opts);
+    if (res.status !== 429 && res.status !== 503) return res;
   }
 
-  // Try primary model
-  let res = await fetch(url(PRIMARY_MODEL), opts);
-  if (res.status !== 429) return res;
-
-  // Primary rate-limited — try fallback model
+  // Primary/Override rate-limited or overloaded — try fallback model
   res = await fetch(url(FALLBACK_MODEL), opts);
   return res;
 }
@@ -145,7 +146,12 @@ http.createServer(async (req, res) => {
     const response = await callGemini(process.env.GEMINI_API_KEY, body, overrideModel);
     if (response.status === 429) return send(res, 429, { error: 'กำลังรอรีเซ็ต...' });
     const data = await response.json();
-    if (!response.ok) return send(res, response.status, { error: data.error?.message || 'Gemini API error' });
+    if (!response.ok) {
+      if (response.status === 503) {
+        return send(res, 503, { error: 'ขออภัยครับ ตอนนี้เซิร์ฟเวอร์ AI มีคนใช้งานเยอะมาก (Overloaded) โปรดลองใหม่อีกครั้งในอีกสักครู่ครับ' });
+      }
+      return send(res, response.status, { error: data.error?.message || 'Gemini API error' });
+    }
     const text = data.candidates?.[0]?.content?.parts?.map(part => part.text || '').join('') || 'ไม่พบคำตอบจาก Gemini';
     return send(res, 200, { text });
   } catch (error) { return send(res, 500, { error: error.message }); }
