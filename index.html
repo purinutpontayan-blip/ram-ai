@@ -133,6 +133,28 @@
     .code-actions button:hover { background: rgba(255,255,255,0.2); }
     .code-container pre { margin: 0; padding: 12px; overflow-x: auto; }
     
+    .code-followup {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(0,0,0,0.08);
+      animation: slideUp 0.3s ease-out;
+    }
+    .code-followup p {
+      margin: 0 0 10px;
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--ink);
+    }
+    .followup-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+    .followup-btn {
+      padding: 8px 14px; border: 1px solid var(--line); border-radius: 99px; background: #fff;
+      font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; transition: var(--transition);
+      color: var(--ink);
+    }
+    .followup-btn:hover { background: #f8fafc; transform: translateY(-1px); box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+    .followup-btn.yes { background: var(--green); color: #fff; border-color: var(--green); }
+    .followup-btn.yes:hover { background: var(--deep-green); }
+    
     .mark, .avatar.bot {
       display: grid;
       place-items: center;
@@ -1298,7 +1320,9 @@
       
       if (animate) {
         (async () => {
+          let hasCode = false;
           for (const item of elementsToAppend) {
+            if (item.classList && item.classList.contains('code-container')) hasCode = true;
             if (item.nodeType === Node.TEXT_NODE) {
               const text = item.textContent;
               item.textContent = '';
@@ -1323,6 +1347,32 @@
               await new Promise(r => setTimeout(r, 50));
             }
           }
+          
+          if (appState.currentAppMode === 'code' && hasCode && role === 'bot') {
+            const followup = document.createElement('div');
+            followup.className = 'code-followup';
+            followup.innerHTML = `
+              <p>ต้องการให้อธิบายโค้ดอย่างละเอียดไหม?</p>
+              <div class="followup-btns">
+                <button class="followup-btn yes">✅ ใช่, อธิบายเลย</button>
+                <button class="followup-btn no">❌ ไม่ต้อง</button>
+                <button class="followup-btn custom">✍️ พิมพ์ถามเอง</button>
+              </div>
+            `;
+            followup.querySelector('.yes').onclick = () => {
+              followup.remove();
+              send('ช่วยอธิบายโค้ดนี้อย่างละเอียดให้หน่อย');
+            };
+            followup.querySelector('.no').onclick = () => {
+              followup.remove();
+            };
+            followup.querySelector('.custom').onclick = () => {
+              followup.remove();
+              prompt.focus();
+            };
+            bubble.append(followup);
+          }
+          
           messages.scrollTop = messages.scrollHeight;
         })();
       } else {
