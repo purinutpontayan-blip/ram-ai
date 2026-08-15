@@ -12,7 +12,10 @@ const transfers = new Map();
 // Persisted to disk so logins survive a server restart (e.g. Render free-tier
 // spinning the process down after inactivity) — otherwise everyone's session
 // token would silently become invalid (401) even though the browser still
-// thinks it's logged in.
+// thinks it's logged in. NOTE: on Render's free tier the disk itself is
+// ephemeral — a redeploy or a cold start after sleep wipes this file, which
+// will also produce a 401. That's expected; the user just needs to log in
+// again. A paid plan with a persistent disk mounted here removes this.
 const SESSIONS_FILE = path.join(root, 'data', 'sessions.json');
 function loadSessions() {
   const map = new Map();
@@ -71,8 +74,11 @@ function requireAuth(req) {
 //        E: end           e.g. 2026-08-25T23:59:59+07:00   (เว้นว่าง = ใช้ default ด้านล่าง)
 //      รูปแบบวันที่: YYYY-MM-DDTHH:mm:ss+07:00
 //   3. ตั้งค่า environment variables บนเซิร์ฟเวอร์:
-//        REDEEM_SHEET_ID   = ID ที่อยู่ใน URL ของชีต (…/spreadsheets/d/THIS_PART/edit)
-//        REDEEM_SHEET_NAME = ชื่อแท็บ (optional, default 'Sheet1') — ต้องตรงกับชื่อแท็บจริงเป๊ะๆ
+//        REDEEM_SHEET_ID  = ID ที่อยู่ใน URL ของชีต (…/spreadsheets/d/THIS_PART/edit)
+//        REDEEM_SHEET_GID = optional, default '0' (แท็บแรกของชีต) — ถ้าโค้ดอยู่แท็บอื่น
+//                            ให้เปิดแท็บนั้นแล้วดูเลข gid= ท้าย URL ในเบราว์เซอร์
+//      ใช้ gid (เลข ID ของแท็บ) แทนชื่อแท็บ เพราะเชื่อถือได้กว่า — ชื่อแท็บที่พิมพ์ผิด/ไม่ตรง
+//      เป๊ะๆ เป็นสาเหตุที่พบบ่อยที่สุดที่ทำให้ดึงโค้ดได้ 0 รายการ
 //   4. แก้ไขแถวในชีตได้ตลอดเวลา — ระบบจะดึงใหม่ภายใน ~1 นาที ไม่ต้อง redeploy
 //   NOTE: ถ้าไม่ได้ตั้งค่า REDEEM_SHEET_ID หรือดึงชีตไม่สำเร็จ จะไม่มีโค้ดใดใช้งานได้เลย
 //   DEBUG: ดู Render → Logs หลังกดปลดล็อก จะเห็นบรรทัด [redeem] บอกว่าดึงโค้ดได้กี่ตัว
@@ -82,7 +88,7 @@ function requireAuth(req) {
 const REDEEM_DEFAULT_START = new Date('2026-08-14T00:00:00+07:00').getTime();
 const REDEEM_DEFAULT_END = new Date('2026-08-18T23:59:59+07:00').getTime();
 
-const REDEEM_SHEET_NAME = process.env.REDEEM_SHEET_NAME || 'Sheet1';
+const REDEEM_SHEET_GID = process.env.REDEEM_SHEET_GID || '0';
 const REDEEM_SHEET_CACHE_MS = 60 * 1000; // re-fetch the sheet at most once a minute
 let redeemCodesCache = null;
 let redeemCodesCacheAt = 0;
@@ -115,9 +121,10 @@ async function fetchCodesFromSheet() {
   const sheetId = process.env.REDEEM_SHEET_ID;
   if (!sheetId) return null; // Sheet integration not configured — caller falls back to empty table
 
-  // Public CSV export — works without any API key as long as the sheet is
-  // shared "Anyone with the link" → Viewer.
-  const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(REDEEM_SHEET_NAME)}`;
+  // Public CSV export by gid (numeric tab ID) — works without any API key as
+  // long as the sheet is shared "Anyone with the link" → Viewer. Using gid
+  // instead of a sheet name avoids silent mismatches from name typos/casing.
+  const url = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${encodeURIComponent(REDEEM_SHEET_GID)}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Google Sheets CSV export error: ${res.status}`);
   let csvText = await res.text();
@@ -137,7 +144,11 @@ async function fetchCodesFromSheet() {
       end: end || undefined,
     };
   }
-  console.log(`[redeem] Loaded ${Object.keys(codes).length} code(s) from Sheet:`, Object.keys(codes));
+  if (Object.keys(codes).length === 0) {
+    // Debug aid: show what we actually got back so a mis-set gid is obvious in logs.
+    console.log(`[redeem] Sheet fetch returned ${lines.length} raw line(s); first line: ${JSON.stringify(lines[0] || '(empty)')}`);
+  }
+  console.log(`[redeem] Loaded ${Object.keys(codes).length} code(s) from Sheet (gid=${REDEEM_SHEET_GID}):`, Object.keys(codes));
   return codes;
 }
 
