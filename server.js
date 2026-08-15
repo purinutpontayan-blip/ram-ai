@@ -34,6 +34,49 @@ function requireAuth(req) {
   return session;
 }
 
+// ===== Redeem codes (PRO unlock) =====
+// Edit this object to add/change codes.
+//   days     = how many days of PRO access the code grants once redeemed
+//   maxUses  = max number of DIFFERENT people allowed to redeem this code (omit/null = unlimited)
+//   start    = when this code STARTS being usable (ISO datetime string)
+//   end      = when this code EXPIRES / stops being usable (ISO datetime string) — the "วันหมดอายุ"
+// Every code below has its own start/end, so each can expire on a different date.
+const REDEEM_CODES = {
+  'RAM_AI_V1.0': {
+    days: 15,
+    maxUses: 100,
+    start: '2026-08-14T00:00:00+07:00',
+    end: '2026-08-18T23:59:59+07:00',   // วันหมดอายุของโค้ดนี้
+  },
+  'RAM_CODE_V1.0': {
+    days: 15,
+    maxUses: 100,
+    start: '2026-08-14T00:00:00+07:00',
+    end: '2026-08-18T23:59:59+07:00',   // วันหมดอายุของโค้ดนี้
+  },
+  'RAM_PRO_V1.0': {
+    days: 15,
+    maxUses: 50,
+    start: '2026-08-14T00:00:00+07:00',
+    end: '2026-08-18T23:59:59+07:00',   // วันหมดอายุของโค้ดนี้
+  },
+};
+// Fallback window — only used if a code above omits its own start/end
+const REDEEM_DEFAULT_START = new Date('2026-08-14T00:00:00+07:00').getTime();
+const REDEEM_DEFAULT_END = new Date('2026-08-18T23:59:59+07:00').getTime();
+
+// Usage is persisted to disk so counts survive server restarts.
+const REDEEM_DATA_FILE = path.join(root, 'data', 'redeem-usage.json');
+function loadRedeemUsage() {
+  try { return JSON.parse(fs.readFileSync(REDEEM_DATA_FILE, 'utf8')); } catch { return {}; }
+}
+function saveRedeemUsage(usage) {
+  try {
+    fs.mkdirSync(path.dirname(REDEEM_DATA_FILE), { recursive: true });
+    fs.writeFileSync(REDEEM_DATA_FILE, JSON.stringify(usage, null, 2));
+  } catch (e) { console.error('Failed to save redeem usage:', e); }
+}
+
 // Gemini API caller with model fallback on 429
 const PRIMARY_MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
 const FALLBACK_MODEL = 'gemini-3.5-flash-lite';
@@ -138,6 +181,51 @@ http.createServer(async (req, res) => {
     return send(res, 200, { appState: transfers.get(token) });
   }
 
+  if (req.method === 'POST' && req.url === '/api/redeem') {
+    const user = requireAuth(req);
+    if (!user) return send(res, 401, { error: 'กรุณาเข้าสู่ระบบด้วย Google ก่อนใช้โค้ดครับ' });
+    let raw = ''; for await (const chunk of req) raw += chunk;
+    try {
+      const { code } = JSON.parse(raw);
+      const normalized = String(code || '').trim().toUpperCase().replace(/\s+/g, '');
+      if (!normalized) return send(res, 400, { error: 'กรุณากรอกโค้ดก่อนครับ' });
+
+      const cfg = REDEEM_CODES[normalized];
+      if (!cfg) return send(res, 400, { error: 'โค้ดไม่ถูกต้อง กรุณาตรวจสอบอีกครั้งครับ' });
+
+      const start = cfg.start ? new Date(cfg.start).getTime() : REDEEM_DEFAULT_START;
+      const end = cfg.end ? new Date(cfg.end).getTime() : REDEEM_DEFAULT_END;
+      const now = Date.now();
+      const thaiDate = ms => new Date(ms).toLocaleString('th-TH', { timeZone: 'Asia/Bangkok', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      if (now < start) return send(res, 400, { error: `โค้ดนี้ยังไม่ถึงเวลาเปิดใช้งานครับ (เปิดใช้ ${thaiDate(start)})` });
+      if (now > end) return send(res, 400, { error: `โค้ดนี้หมดอายุแล้วครับ (หมดอายุเมื่อ ${thaiDate(end)})` });
+
+      const usage = loadRedeemUsage();
+      const entry = usage[normalized] || { users: {} };
+
+      // Same user redeeming again — return their existing expiry instead of counting them twice
+      if (entry.users[user.email]) {
+        return send(res, 200, { success: true, expiry: entry.users[user.email], alreadyRedeemed: true });
+      }
+
+      const usedCount = Object.keys(entry.users).length;
+      if (cfg.maxUses != null && usedCount >= cfg.maxUses) {
+        return send(res, 400, { error: `ขออภัยครับ โค้ดนี้ถูกใช้ครบ ${cfg.maxUses} คนแล้ว` });
+      }
+
+      const expiry = now + cfg.days * 24 * 60 * 60 * 1000;
+      entry.users[user.email] = expiry;
+      usage[normalized] = entry;
+      saveRedeemUsage(usage);
+
+      return send(res, 200, {
+        success: true,
+        expiry,
+        remaining: cfg.maxUses != null ? Math.max(0, cfg.maxUses - Object.keys(entry.users).length) : null
+      });
+    } catch (e) { return send(res, 500, { error: e.message }); }
+  }
+
   if (req.method === 'POST' && req.url === '/api/title') {
     if (!process.env.GEMINI_API_KEY) return send(res, 500, { error: 'ยังไม่ได้ตั้งค่า GEMINI_API_KEY' });
     let raw = ''; for await (const chunk of req) raw += chunk;
@@ -165,7 +253,7 @@ http.createServer(async (req, res) => {
   if (!process.env.GEMINI_API_KEY) return send(res, 500, { error: 'ยังไม่ได้ตั้งค่า GEMINI_API_KEY' });
   let raw = ''; for await (const chunk of req) raw += chunk;
   try {
-    const { contents, location, mode, codeModel } = JSON.parse(raw);
+    const { contents, location, mode, codeModel, aiModel } = JSON.parse(raw);
     const model = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
 
     // ===== PROFANITY DETECTION =====
@@ -219,6 +307,15 @@ http.createServer(async (req, res) => {
       overrideModel = CODE_MODELS[codeModel] || 'gemini-2.5-flash';
       const modelVersion = codeModel === 'code3' ? '3.0' : codeModel === 'code2' ? '2.0' : '1.0';
       systemInstruction = `You are RAM CODE ${modelVersion}, an expert AI coding assistant. You must write clear, well-structured, and efficient code. Always use markdown code blocks (\`\`\`language ... \`\`\`) for your code. Provide explanations in polite Thai ending with ครับ. Greet the user with "สวัสดีครับ! RAM CODE ${modelVersion} พร้อมช่วยเขียนโปรแกรมแล้วครับ". Do not use LaTeX math.`;
+    } else {
+      // Map aiModel from client to actual Gemini model (RAM AI mode)
+      const AI_MODELS = {
+        'ai1': 'gemini-3.5-flash-lite', // RAM AI 1.5
+        'ai2': 'gemini-3.5-flash',      // RAM AI 2.0
+        'ai3': 'gemini-3.6-flash',      // RAM AI 3.5 (PRO)
+        'ai4': 'gemini-3.7-flash',      // RAM AI 4.0 (PRO)
+      };
+      overrideModel = AI_MODELS[aiModel] || AI_MODELS['ai2'];
     }
 
     const body = { systemInstruction: { parts: [{ text: systemInstruction }] }, contents };
