@@ -59,35 +59,82 @@ function requireAuth(req) {
 }
 
 // ===== Redeem codes (PRO unlock) =====
-// Edit this object to add/change codes.
-//   days     = how many days of PRO access the code grants once redeemed
-//   maxUses  = max number of DIFFERENT people allowed to redeem this code (omit/null = unlimited)
-//   start    = when this code STARTS being usable (ISO datetime string)
-//   end      = when this code EXPIRES / stops being usable (ISO datetime string) — the "วันหมดอายุ"
-// Every code below has its own start/end, so each can expire on a different date.
-const REDEEM_CODES = {
-  'RAM_AI_V1.0': {
-    days: 15,
-    maxUses: 100,
-    start: '2026-08-14T00:00:00+07:00',
-    end: '2026-08-18T23:59:59+07:00',   // วันหมดอายุของโค้ดนี้
-  },
-  'RAM_CODE_V2.0': {
-    days: 15,
-    maxUses: 2,
-    start: '2026-08-14T00:00:00+07:00',
-    end: '2026-08-18T23:59:59+07:00',   // วันหมดอายุของโค้ดนี้
-  },
-  'RAM_PRO_V3.0': {
-    days: 15,
-    maxUses: 50,
-    start: '2026-08-14T00:00:00+07:00',
-    end: '2026-08-18T23:59:59+07:00',   // วันหมดอายุของโค้ดนี้
-  },
-};
-// Fallback window — only used if a code above omits its own start/end
+// โค้ดทั้งหมดจัดการผ่าน Google Sheet เท่านั้น — ไม่มีโค้ดฝังอยู่ในไฟล์นี้อีกต่อไป
+//
+// ----- Google Sheet setup -----
+//   1. Google Cloud Console (same project as your GOOGLE_CLIENT_ID) → enable "Google Sheets API".
+//   2. Create an API key → restrict it to the Sheets API (Credentials → Create Credentials → API key).
+//   3. In the Sheet: Share → "Anyone with the link" → Viewer. (Needed so the API key can read it
+//      without a full OAuth/service-account login.)
+//   4. Sheet layout — row 1 is a header (skipped), data starts at row 2:
+//        A: code          e.g. RAM_AI_V1.0
+//        B: days          e.g. 15            (PRO days granted)
+//        C: maxUses       e.g. 100           (leave blank = unlimited)
+//        D: start         e.g. 2026-08-20T09:00:00+07:00   (leave blank = uses default below) — วันเวลาเริ่มใช้งาน
+//        E: end           e.g. 2026-08-25T23:59:59+07:00   (leave blank = uses default below) — วันเวลาหมดอายุ
+//      รูปแบบวันที่ต้องเป็น YYYY-MM-DDTHH:mm:ss+07:00 (ISO 8601 พร้อม timezone ไทย)
+//   5. Set environment variables on the server:
+//        GOOGLE_SHEETS_API_KEY = the API key from step 2
+//        REDEEM_SHEET_ID       = the long ID in the sheet's URL
+//                                 (https://docs.google.com/spreadsheets/d/THIS_PART/edit)
+//        REDEEM_SHEET_RANGE    = optional, defaults to 'Sheet1!A2:E' (change 'Sheet1' if your tab is named differently)
+//   6. Edit rows in the Sheet any time — changes show up within ~1 minute, no redeploy needed.
+//   NOTE: ถ้าไม่ได้ตั้งค่า GOOGLE_SHEETS_API_KEY / REDEEM_SHEET_ID หรือดึง Sheet ไม่สำเร็จ
+//         จะไม่มีโค้ดใดใช้งานได้เลย (ไม่มี fallback ในไฟล์นี้แล้ว)
+
+// Fallback window — only used if a code omits its own start/end (from the Sheet)
 const REDEEM_DEFAULT_START = new Date('2026-08-14T00:00:00+07:00').getTime();
 const REDEEM_DEFAULT_END = new Date('2026-08-18T23:59:59+07:00').getTime();
+
+const REDEEM_SHEET_RANGE = process.env.REDEEM_SHEET_RANGE || 'Sheet1!A2:E';
+const REDEEM_SHEET_CACHE_MS = 60 * 1000; // re-fetch the sheet at most once a minute
+let redeemCodesCache = null;
+let redeemCodesCacheAt = 0;
+
+async function fetchCodesFromSheet() {
+  const apiKey = process.env.GOOGLE_SHEETS_API_KEY;
+  const sheetId = process.env.REDEEM_SHEET_ID;
+  if (!apiKey || !sheetId) return null; // Sheet integration not configured
+
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(REDEEM_SHEET_RANGE)}?key=${apiKey}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Google Sheets API error: ${res.status}`);
+  const data = await res.json();
+  const rows = data.values || [];
+
+  const codes = {};
+  for (const row of rows) {
+    const [code, days, maxUses, start, end] = row;
+    if (!code || !String(code).trim()) continue;
+    codes[String(code).trim().toUpperCase()] = {
+      days: Number(days) || 0,
+      maxUses: (maxUses !== undefined && String(maxUses).trim() !== '') ? Number(maxUses) : null,
+      start: (start && String(start).trim()) || undefined,
+      end: (end && String(end).trim()) || undefined,
+    };
+  }
+  return codes;
+}
+
+// Returns the current code table, cached for REDEEM_SHEET_CACHE_MS.
+// ไม่มี fallback ไปตารางฝังไฟล์อีกต่อไป — ถ้า Sheet ใช้ไม่ได้ ถือว่าไม่มีโค้ดใดใช้งานได้ชั่วคราว
+async function getRedeemCodes() {
+  const now = Date.now();
+  if (redeemCodesCache && (now - redeemCodesCacheAt) < REDEEM_SHEET_CACHE_MS) {
+    return redeemCodesCache;
+  }
+  try {
+    const fromSheet = await fetchCodesFromSheet();
+    redeemCodesCache = fromSheet || {};
+    redeemCodesCacheAt = now;
+    return redeemCodesCache;
+  } catch (e) {
+    console.error('Failed to load redeem codes from Google Sheet:', e.message);
+    redeemCodesCache = {};
+    redeemCodesCacheAt = now;
+    return redeemCodesCache;
+  }
+}
 
 // Usage is persisted to disk so counts survive server restarts.
 const REDEEM_DATA_FILE = path.join(root, 'data', 'redeem-usage.json');
@@ -215,7 +262,8 @@ http.createServer(async (req, res) => {
       const normalized = String(code || '').trim().toUpperCase().replace(/\s+/g, '');
       if (!normalized) return send(res, 400, { error: 'กรุณากรอกโค้ดก่อนครับ' });
 
-      const cfg = REDEEM_CODES[normalized];
+      const codesTable = await getRedeemCodes();
+      const cfg = codesTable[normalized];
       if (!cfg) return send(res, 400, { error: 'โค้ดไม่ถูกต้อง กรุณาตรวจสอบอีกครั้งครับ' });
 
       const start = cfg.start ? new Date(cfg.start).getTime() : REDEEM_DEFAULT_START;
