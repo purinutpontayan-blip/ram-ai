@@ -59,52 +59,73 @@ function requireAuth(req) {
 }
 
 // ===== Redeem codes (PRO unlock) =====
-// โค้ดทั้งหมดจัดการผ่าน Google Sheet เท่านั้น — ไม่มีโค้ดฝังอยู่ในไฟล์นี้อีกต่อไป
+// โค้ดทั้งหมดจัดการผ่าน Google Sheet เท่านั้น — ไม่มีโค้ดฝังอยู่ในไฟล์นี้
 //
-// ----- Google Sheet setup -----
-//   1. Google Cloud Console (same project as your GOOGLE_CLIENT_ID) → enable "Google Sheets API".
-//   2. Create an API key → restrict it to the Sheets API (Credentials → Create Credentials → API key).
-//   3. In the Sheet: Share → "Anyone with the link" → Viewer. (Needed so the API key can read it
-//      without a full OAuth/service-account login.)
-//   4. Sheet layout — row 1 is a header (skipped), data starts at row 2:
+// ----- Google Sheet setup (ไม่ต้องใช้ API key) -----
+//   1. เปิดชีต → Share → เปลี่ยนเป็น "Anyone with the link" → Viewer
+//      (จำเป็น เพราะดึงข้อมูลแบบ public CSV export โดยไม่ผ่าน OAuth/API key)
+//   2. Sheet layout — แถวที่ 1 เป็น header (จะถูกข้าม), ข้อมูลเริ่มแถวที่ 2:
 //        A: code          e.g. RAM_AI_V1.0
 //        B: days          e.g. 15            (PRO days granted)
-//        C: maxUses       e.g. 100           (leave blank = unlimited)
-//        D: start         e.g. 2026-08-20T09:00:00+07:00   (leave blank = uses default below) — วันเวลาเริ่มใช้งาน
-//        E: end           e.g. 2026-08-25T23:59:59+07:00   (leave blank = uses default below) — วันเวลาหมดอายุ
-//      รูปแบบวันที่ต้องเป็น YYYY-MM-DDTHH:mm:ss+07:00 (ISO 8601 พร้อม timezone ไทย)
-//   5. Set environment variables on the server:
-//        GOOGLE_SHEETS_API_KEY = the API key from step 2
-//        REDEEM_SHEET_ID       = the long ID in the sheet's URL
-//                                 (https://docs.google.com/spreadsheets/d/THIS_PART/edit)
-//        REDEEM_SHEET_RANGE    = optional, defaults to 'Sheet1!A2:E' (change 'Sheet1' if your tab is named differently)
-//   6. Edit rows in the Sheet any time — changes show up within ~1 minute, no redeploy needed.
-//   NOTE: ถ้าไม่ได้ตั้งค่า GOOGLE_SHEETS_API_KEY / REDEEM_SHEET_ID หรือดึง Sheet ไม่สำเร็จ
-//         จะไม่มีโค้ดใดใช้งานได้เลย (ไม่มี fallback ในไฟล์นี้แล้ว)
+//        C: maxUses       e.g. 100           (เว้นว่าง = ไม่จำกัด)
+//        D: start         e.g. 2026-08-20T09:00:00+07:00   (เว้นว่าง = ใช้ default ด้านล่าง)
+//        E: end           e.g. 2026-08-25T23:59:59+07:00   (เว้นว่าง = ใช้ default ด้านล่าง)
+//      รูปแบบวันที่: YYYY-MM-DDTHH:mm:ss+07:00
+//   3. ตั้งค่า environment variables บนเซิร์ฟเวอร์:
+//        REDEEM_SHEET_ID   = ID ที่อยู่ใน URL ของชีต (…/spreadsheets/d/THIS_PART/edit)
+//        REDEEM_SHEET_NAME = ชื่อแท็บ (optional, default 'Sheet1')
+//   4. แก้ไขแถวในชีตได้ตลอดเวลา — ระบบจะดึงใหม่ภายใน ~1 นาที ไม่ต้อง redeploy
+//   NOTE: ถ้าไม่ได้ตั้งค่า REDEEM_SHEET_ID หรือดึงชีตไม่สำเร็จ จะไม่มีโค้ดใดใช้งานได้เลย
 
-// Fallback window — only used if a code omits its own start/end (from the Sheet)
+// Fallback window — ใช้เฉพาะกรณีแถวในชีตไม่ได้กรอก start/end
 const REDEEM_DEFAULT_START = new Date('2026-08-14T00:00:00+07:00').getTime();
 const REDEEM_DEFAULT_END = new Date('2026-08-18T23:59:59+07:00').getTime();
 
-const REDEEM_SHEET_RANGE = process.env.REDEEM_SHEET_RANGE || 'Sheet1!A2:E';
+const REDEEM_SHEET_NAME = process.env.REDEEM_SHEET_NAME || 'Sheet1';
 const REDEEM_SHEET_CACHE_MS = 60 * 1000; // re-fetch the sheet at most once a minute
 let redeemCodesCache = null;
 let redeemCodesCacheAt = 0;
 
-async function fetchCodesFromSheet() {
-  const apiKey = process.env.GOOGLE_SHEETS_API_KEY;
-  const sheetId = process.env.REDEEM_SHEET_ID;
-  if (!apiKey || !sheetId) return null; // Sheet integration not configured
+// Minimal CSV line parser — handles quoted fields with embedded commas/quotes,
+// which is all Google's CSV export produces.
+function parseCsvLine(line) {
+  const fields = [];
+  let cur = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (line[i + 1] === '"') { cur += '"'; i++; }
+        else inQuotes = false;
+      } else cur += ch;
+    } else {
+      if (ch === '"') inQuotes = true;
+      else if (ch === ',') { fields.push(cur); cur = ''; }
+      else cur += ch;
+    }
+  }
+  fields.push(cur);
+  return fields;
+}
 
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(REDEEM_SHEET_RANGE)}?key=${apiKey}`;
+async function fetchCodesFromSheet() {
+  const sheetId = process.env.REDEEM_SHEET_ID;
+  if (!sheetId) return null; // Sheet integration not configured — caller falls back to empty table
+
+  // Public CSV export — works without any API key as long as the sheet is
+  // shared "Anyone with the link" → Viewer.
+  const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(REDEEM_SHEET_NAME)}`;
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`Google Sheets API error: ${res.status}`);
-  const data = await res.json();
-  const rows = data.values || [];
+  if (!res.ok) throw new Error(`Google Sheets CSV export error: ${res.status}`);
+  const csvText = await res.text();
+
+  const lines = csvText.split(/\r?\n/).filter(l => l.trim() !== '');
+  const dataLines = lines.slice(1); // skip header row
 
   const codes = {};
-  for (const row of rows) {
-    const [code, days, maxUses, start, end] = row;
+  for (const line of dataLines) {
+    const [code, days, maxUses, start, end] = parseCsvLine(line);
     if (!code || !String(code).trim()) continue;
     codes[String(code).trim().toUpperCase()] = {
       days: Number(days) || 0,
@@ -117,7 +138,7 @@ async function fetchCodesFromSheet() {
 }
 
 // Returns the current code table, cached for REDEEM_SHEET_CACHE_MS.
-// ไม่มี fallback ไปตารางฝังไฟล์อีกต่อไป — ถ้า Sheet ใช้ไม่ได้ ถือว่าไม่มีโค้ดใดใช้งานได้ชั่วคราว
+// ไม่มี fallback ไปตารางฝังไฟล์ — ถ้าชีตใช้ไม่ได้ ถือว่าไม่มีโค้ดใดใช้งานได้ชั่วคราว
 async function getRedeemCodes() {
   const now = Date.now();
   if (redeemCodesCache && (now - redeemCodesCacheAt) < REDEEM_SHEET_CACHE_MS) {
