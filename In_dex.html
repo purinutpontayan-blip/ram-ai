@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>RAM AI</title>
   <link rel="icon" type="image/png"
-    href="https://plain-apac-prod-public.komododecks.com/202608/14/HPO0SoDWzrZqRasCUb2F/image.png">
+    href="https://plain-apac-prod-public.komododecks.com/202608/15/tQ827TTBsqlUklWmLamB/image.png">
   <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
@@ -91,7 +91,7 @@
     .brand {
       width: 100%;
       height: 150px;
-      background: url('https://plain-apac-prod-public.komododecks.com/202608/14/HPO0SoDWzrZqRasCUb2F/image.png') center center / 90% auto no-repeat;
+      background: url('https://plain-apac-prod-public.komododecks.com/202608/15/yPgWs8n2v1M8j3ekHIoc/image.png') center center / 90% auto no-repeat;
       cursor: pointer;
       transition: opacity 0.2s;
     }
@@ -101,18 +101,18 @@
     }
 
     .brand.code-mode {
-      background-image: url('https://plain-apac-prod-public.komododecks.com/202608/14/hbJ5do2LkbfyJj8lw5xJ/image.png');
+      background-image: url('https://plain-apac-prod-public.komododecks.com/202608/15/ktufKiUL0fP8xjraucKX/image.png');
     }
 
     .brand.ai-pro-mode {
-      background-image: url('https://plain-apac-prod-public.komododecks.com/202608/14/i69lxvzX51CStkgFUcjx/image.png');
+      background-image: url('https://plain-apac-prod-public.komododecks.com/202608/15/OAplKQgl253gjpkRE4LE/image.png');
       /* Keep the complete PRO mark visible, including its lower text. */
       background-size: contain;
       background-position: center;
     }
 
     .brand.code-pro-mode {
-      background-image: url('https://plain-apac-prod-public.komododecks.com/202608/14/ssHjXRzSdacaf1HRtT6S/image.png');
+      background-image: url('https://plain-apac-prod-public.komododecks.com/202608/15/r6UROdymupXO37D7JHig/image.png');
       /* Keep the complete PRO mark visible, including its lower text. */
       background-size: contain;
       background-position: center;
@@ -294,7 +294,7 @@
 
     .avatar.bot {
       overflow: hidden;
-      background: url('https://plain-apac-prod-public.komododecks.com/202608/14/ErLIGAxdzwZ7e3uXUnDh/image.png') center center / cover no-repeat;
+      background: url('https://plain-apac-prod-public.komododecks.com/202608/15/tQ827TTBsqlUklWmLamB/image.png') center center / cover no-repeat;
       font-size: 0;
     }
 
@@ -1842,7 +1842,7 @@
               </button>
 
               <div class="model-dropdown-menu" id="modelDropdownMenu">
-                <button type="button" class="model-dd-item active model-btn" data-model="code1">
+                <button type="button" class="model-dd-item active model-btn-code" data-model="code1">
                   <div class="dd-check-wrapper"><svg class="dd-check" viewBox="0 0 24 24" fill="none"
                       stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
                       <polyline points="20 6 9 17 4 12"></polyline>
@@ -1852,7 +1852,7 @@
                     <span class="model-dd-desc">คำตอบเร็วที่สุด</span>
                   </div>
                 </button>
-                <button type="button" class="model-dd-item model-btn" data-model="code2">
+                <button type="button" class="model-dd-item model-btn-code" data-model="code2">
                   <div class="dd-check-wrapper"><svg class="dd-check" viewBox="0 0 24 24" fill="none"
                       stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
                       <polyline points="20 6 9 17 4 12"></polyline>
@@ -1862,7 +1862,7 @@
                     <span class="model-dd-desc">ช่วยเขียนโค้ดได้ทุกประเภท</span>
                   </div>
                 </button>
-                <button type="button" class="model-dd-item model-btn" data-model="code3" id="modelBtn3">
+                <button type="button" class="model-dd-item model-btn-code" data-model="code3" id="modelBtn3">
                   <div class="dd-check-wrapper"><svg class="dd-check" viewBox="0 0 24 24" fill="none"
                       stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
                       <polyline points="20 6 9 17 4 12"></polyline>
@@ -1870,6 +1870,49 @@
                   <div class="dd-content">
                     <span class="model-dd-name">RAM CODE 3.0</span>
                     <span class="model-dd-desc">โค้ดซับซ้อน &amp; โปรเจกต์ขนาดใหญ่</span>
+                  </div>
+                </button>
+              </div>
+
+              <div class="model-dropdown-menu" id="modelDropdownMenuAI">
+                <button type="button" class="model-dd-item model-btn-ai" data-model="ai1">
+                  <div class="dd-check-wrapper"><svg class="dd-check" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg></div>
+                  <div class="dd-content">
+                    <span class="model-dd-name">RAM AI 1.5</span>
+                    <span class="model-dd-desc">ตอบเร็วที่สุด เหมาะกับคำถามทั่วไป</span>
+                  </div>
+                </button>
+                <button type="button" class="model-dd-item active model-btn-ai" data-model="ai2">
+                  <div class="dd-check-wrapper"><svg class="dd-check" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg></div>
+                  <div class="dd-content">
+                    <span class="model-dd-name">RAM AI 2.0</span>
+                    <span class="model-dd-desc">สมดุลระหว่างความเร็วและความแม่นยำ</span>
+                  </div>
+                </button>
+                <button type="button" class="model-dd-item model-btn-ai" data-model="ai3" id="modelBtnAI3">
+                  <div class="dd-check-wrapper"><svg class="dd-check" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg></div>
+                  <div class="dd-content">
+                    <span class="model-dd-name">RAM AI 3.5</span>
+                    <span class="model-dd-desc">เข้าใจโจทย์ซับซ้อนได้แม่นยำขึ้น</span>
+                  </div>
+                </button>
+                <button type="button" class="model-dd-item model-btn-ai" data-model="ai4" id="modelBtnAI4">
+                  <div class="dd-check-wrapper"><svg class="dd-check" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg></div>
+                  <div class="dd-content">
+                    <span class="model-dd-name">RAM AI 4.0</span>
+                    <span class="model-dd-desc">ฉลาดที่สุด เหมาะกับโจทย์ยาก</span>
                   </div>
                 </button>
               </div>
@@ -2337,20 +2380,24 @@
 
       const modelWrap = document.getElementById('modelSelectorWrap');
       const brandLogo = document.getElementById('brandLogo');
+      const codeMenu = document.getElementById('modelDropdownMenu');
+      const aiMenu = document.getElementById('modelDropdownMenuAI');
       if (currentAppMode === 'code') {
         brandLogo.classList.add('code-mode');
         brandLogo.classList.toggle('code-pro-mode', hasActiveProLogo('codePro'));
         brandLogo.classList.remove('ai-pro-mode');
         document.querySelector('.status').innerHTML = '<i class="dot"></i> RAM CODE ขับเคลื่อนโดย Gemini';
         document.getElementById('imageInput').accept = "image/*,.txt,.js,.html,.css,.py,.cpp,.java,.cs";
-        modelWrap.classList.add('show');
+        if (aiMenu) aiMenu.classList.remove('show');
       } else {
         brandLogo.classList.remove('code-mode', 'code-pro-mode');
         brandLogo.classList.toggle('ai-pro-mode', hasActiveProLogo('aiPro'));
         document.querySelector('.status').innerHTML = '<i class="dot"></i> RAM AI ขับเคลื่อนโดย Gemini';
         document.getElementById('imageInput').accept = "image/*";
-        modelWrap.classList.remove('show');
+        if (codeMenu) codeMenu.classList.remove('show');
       }
+      modelWrap.classList.add('show');
+      if (typeof updateModelSelectText === 'function') updateModelSelectText();
       updateHeaderProLogo(currentAppMode);
     }
 
@@ -2387,7 +2434,7 @@
           if (!res.ok) throw new Error('token_not_found');
           const data = await res.json();
           if (data.appState) {
-            localStorage.setItem('ram_ai_chat', JSON.stringify(data.appState));
+            applyReceivedTransferPayload(data.appState);
             alert('โอนย้ายข้อมูลสำเร็จ!');
             location.reload();
           } else throw new Error();
@@ -2400,6 +2447,32 @@
         }
       }
     })();
+
+    // Bundle chat history together with PRO status + saved model choices so a QR transfer
+    // carries everything over to the new device, not just the chat log.
+    function buildTransferPayload() {
+      let proState = {};
+      try { proState = JSON.parse(localStorage.getItem('ram_ai_pro') || '{}'); } catch { }
+      return {
+        chat: appState,
+        pro: proState,
+        codeModel: localStorage.getItem('ram_code_model') || 'code1',
+        aiModel: localStorage.getItem('ram_ai_model') || 'ai2'
+      };
+    }
+
+    function applyReceivedTransferPayload(payload) {
+      if (payload && payload.chat) {
+        // New combined format: chat history + PRO status + model choices.
+        localStorage.setItem('ram_ai_chat', JSON.stringify(payload.chat));
+        if (payload.pro) localStorage.setItem('ram_ai_pro', JSON.stringify(payload.pro));
+        if (payload.codeModel) localStorage.setItem('ram_code_model', payload.codeModel);
+        if (payload.aiModel) localStorage.setItem('ram_ai_model', payload.aiModel);
+      } else {
+        // Legacy format: payload was the raw chat state itself.
+        localStorage.setItem('ram_ai_chat', JSON.stringify(payload));
+      }
+    }
 
     // QR Code scanner and generator
     let html5QrcodeScanner = null;
@@ -2428,7 +2501,7 @@
         fetch(`${API_BASE}/api/transfer/upload`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token, appState })
+          body: JSON.stringify({ token, appState: buildTransferPayload() })
         })
           .then(res => res.json())
           .then(data => {
@@ -2490,7 +2563,7 @@
                 if (res.appState) {
                   document.getElementById('progressText').textContent = `กำลังโอนย้ายข้อมูล 100%`;
                   document.getElementById('progressBar').style.width = `100%`;
-                  localStorage.setItem('ram_ai_chat', JSON.stringify(res.appState));
+                  applyReceivedTransferPayload(res.appState);
                   alert("โอนย้ายข้อมูลสำเร็จ!");
                   location.reload();
                 } else throw new Error();
@@ -2603,7 +2676,7 @@
         response = await fetch(`${API_BASE}/api/chat`, {
           method: 'POST',
           headers: authHeaders({ 'Content-Type': 'application/json' }),
-          body: JSON.stringify({ contents: activeChat.conversation, location, mode: appState.currentAppMode, codeModel: selectedCodeModel }),
+          body: JSON.stringify({ contents: activeChat.conversation, location, mode: appState.currentAppMode, codeModel: selectedCodeModel, aiModel: selectedAiModel }),
           signal: currentAbortController.signal
         });
       } catch (err) {
@@ -3205,6 +3278,7 @@
 
     // ===== Model Selector =====
     let selectedCodeModel = localStorage.getItem('ram_code_model') || 'code1';
+    let selectedAiModel = localStorage.getItem('ram_ai_model') || 'ai2';
 
     function updateModelSelectorPro() {
       const btn3 = document.getElementById('modelBtn3');
@@ -3215,54 +3289,92 @@
       if (!hasPro && selectedCodeModel === 'code3') {
         selectedCodeModel = 'code1';
         localStorage.setItem('ram_code_model', 'code1');
-        updateModelUI();
+        updateCodeModelUI();
       }
-    }
 
-    function updateModelUI() {
-      let activeText = 'RAM CODE 1.0';
-      document.querySelectorAll('.model-btn').forEach(b => {
-        const isActive = b.dataset.model === selectedCodeModel;
-        b.classList.toggle('active', isActive);
-        if (isActive && b.querySelector('.model-dd-name')) {
-          activeText = b.querySelector('.model-dd-name').textContent;
-        }
+      const btnAi3 = document.getElementById('modelBtnAI3');
+      const btnAi4 = document.getElementById('modelBtnAI4');
+      const hasAiPro = isProActive('aiPro');
+      [btnAi3, btnAi4].forEach(b => {
+        if (!b) return;
+        b.disabled = !hasAiPro;
+        b.style.opacity = hasAiPro ? '1' : '0.45';
+        b.title = hasAiPro ? b.querySelector('.model-dd-name').textContent : 'ต้องการ RAM AI PRO';
       });
-      const modelSelectText = document.getElementById('modelSelectText');
-      if (modelSelectText) {
-        modelSelectText.textContent = activeText;
+      if (!hasAiPro && (selectedAiModel === 'ai3' || selectedAiModel === 'ai4')) {
+        selectedAiModel = 'ai2';
+        localStorage.setItem('ram_ai_model', 'ai2');
+        updateAiModelUI();
       }
     }
 
-    document.querySelectorAll('.model-btn').forEach(btn => {
-      btn.onclick = (e) => {
+    function updateCodeModelUI() {
+      document.querySelectorAll('.model-btn-code').forEach(b => {
+        b.classList.toggle('active', b.dataset.model === selectedCodeModel);
+      });
+      updateModelSelectText();
+    }
+
+    function updateAiModelUI() {
+      document.querySelectorAll('.model-btn-ai').forEach(b => {
+        b.classList.toggle('active', b.dataset.model === selectedAiModel);
+      });
+      updateModelSelectText();
+    }
+
+    function updateModelSelectText() {
+      const modelSelectText = document.getElementById('modelSelectText');
+      if (!modelSelectText) return;
+      const currentAppMode = appState.currentAppMode || 'chat';
+      const activeBtn = currentAppMode === 'code'
+        ? document.querySelector('.model-btn-code.active')
+        : document.querySelector('.model-btn-ai.active');
+      modelSelectText.textContent = activeBtn?.querySelector('.model-dd-name')?.textContent
+        || (currentAppMode === 'code' ? 'RAM CODE 1.0' : 'RAM AI 2.0');
+    }
+
+    document.querySelectorAll('.model-btn-code').forEach(btn => {
+      btn.onclick = () => {
         if (btn.disabled) return;
         selectedCodeModel = btn.dataset.model;
         localStorage.setItem('ram_code_model', selectedCodeModel);
-        updateModelUI();
-
-        const customModelDropdownMenu = document.getElementById('modelDropdownMenu');
-        if (customModelDropdownMenu) {
-          customModelDropdownMenu.classList.remove('show');
-        }
+        updateCodeModelUI();
+        document.getElementById('modelDropdownMenu')?.classList.remove('show');
       };
     });
 
-    updateModelUI();
+    document.querySelectorAll('.model-btn-ai').forEach(btn => {
+      btn.onclick = () => {
+        if (btn.disabled) return;
+        selectedAiModel = btn.dataset.model;
+        localStorage.setItem('ram_ai_model', selectedAiModel);
+        updateAiModelUI();
+        document.getElementById('modelDropdownMenuAI')?.classList.remove('show');
+      };
+    });
+
+    updateCodeModelUI();
+    updateAiModelUI();
     updateModelSelectorPro();
 
-    // Custom Model Selector JS
+    // Custom Model Selector JS — opens the dropdown that matches the current app mode
     const customModelSelectBtn = document.getElementById('modelSelectBtn');
-    const customModelDropdownMenu = document.getElementById('modelDropdownMenu');
+    const codeDropdownMenu = document.getElementById('modelDropdownMenu');
+    const aiDropdownMenu = document.getElementById('modelDropdownMenuAI');
 
-    if (customModelSelectBtn && customModelDropdownMenu) {
+    if (customModelSelectBtn) {
       customModelSelectBtn.onclick = (e) => {
         e.stopPropagation();
-        customModelDropdownMenu.classList.toggle('show');
+        const currentAppMode = appState.currentAppMode || 'chat';
+        const menuToOpen = currentAppMode === 'code' ? codeDropdownMenu : aiDropdownMenu;
+        const otherMenu = currentAppMode === 'code' ? aiDropdownMenu : codeDropdownMenu;
+        otherMenu?.classList.remove('show');
+        menuToOpen?.classList.toggle('show');
       };
 
       document.addEventListener('click', () => {
-        customModelDropdownMenu.classList.remove('show');
+        codeDropdownMenu?.classList.remove('show');
+        aiDropdownMenu?.classList.remove('show');
       });
     }
   </script>
