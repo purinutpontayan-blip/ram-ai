@@ -1999,7 +1999,7 @@
           <div class="redeem-card">
             <div class="redeem-body">
               <p class="redeem-desc" id="redeemDesc">
-                ปลดล็อก <strong>RAM AI PRO และ RAM CODE PRO</strong> พร้อมกัน ใช้งานได้ <strong>15 วัน</strong>
+                ปลดล็อก <strong>RAM AI PRO และ RAM CODE PRO
               </p>
               <div class="redeem-input-wrap">
                 <input class="redeem-input" id="redeemCodeInput" type="text" placeholder="กรอกโค้ดของคุณ..."
@@ -2116,7 +2116,8 @@
     }
 
     function authHeaders(extra = {}) {
-      return extra;
+      const token = localStorage.getItem('ram_session_token');
+      return token ? { ...extra, 'Authorization': `Bearer ${token}` } : extra;
     }
     const messages = document.querySelector('#messages'),
       prompt = document.querySelector('#prompt'),
@@ -2179,10 +2180,6 @@
         <div class="welcome" id="welcome">
           <h2>สวัสดีครับ ผมคือ RAM AI</h2>
           <p>ส่งโจทย์การบ้านหรือแนบรูปโจทย์มาได้เลยครับ<br>ผมจะช่วยอธิบายวิธีคิดทีละขั้น เพื่อให้คุณทำได้ด้วยตัวเอง</p>
-          <div class="suggestions">
-            <button onclick="send(this.textContent)">ช่วยอธิบายโจทย์คณิตศาสตร์</button>
-            <button onclick="send(this.textContent)">สรุปบทเรียนวิทยาศาสตร์</button>
-            <button onclick="send(this.textContent)">ช่วยตรวจภาษาอังกฤษ</button>
           </div>
         </div>
       `;
@@ -3223,15 +3220,10 @@
 
     // ===== PRO & Redemption System =====
     const PRO_KEY = 'ram_ai_pro';
-    // Enter either existing code once to unlock both PRO products.
-    // Valid window: 14 Aug 2026 (BE 2569 = CE 2026) to 18 Aug 2026
-    const VALID_CODES = {
-      'RAM_AI_V1.0': { days: 15 },
-      'RAM_CODE_V1.0': { days: 15 },
-      'RAM_PRO_V1.0': { days: 15 }
-    };
-    const CODE_START = new Date('2026-08-14T00:00:00+07:00').getTime();
-    const CODE_END = new Date('2026-08-18T23:59:59+07:00').getTime();
+    // Redeem codes, their duration, valid-use window, and per-code max-uses are now
+    // configured and enforced server-side in server.js (REDEEM_CODES) — see /api/redeem.
+    // This keeps a real per-code "how many people used it" limit possible, since that
+    // can't be tracked correctly from the browser alone (each visitor has separate storage).
 
     function getProState() {
       try { return JSON.parse(localStorage.getItem(PRO_KEY) || '{}'); } catch { return {}; }
@@ -3332,32 +3324,15 @@
 
     loadGoogleUser();
 
-    document.getElementById('redeemSubmitBtn').onclick = () => {
+    document.getElementById('redeemSubmitBtn').onclick = async () => {
       const code = document.getElementById('redeemCodeInput').value.trim().toUpperCase();
       const statusEl = document.getElementById('redeemStatus');
+      const btn = document.getElementById('redeemSubmitBtn');
       statusEl.className = 'redeem-status';
       statusEl.style.display = 'none';
 
       if (!code) {
         statusEl.textContent = '⚠️ กรุณากรอกโค้ดก่อนครับ';
-        statusEl.className = 'redeem-status error';
-        return;
-      }
-
-      // Normalize: accept with or without dots (some keyboards)
-      const normalized = code.replace(/\s+/g, '');
-      const found = VALID_CODES[normalized];
-
-      if (!found) {
-        statusEl.textContent = '❌ โค้ดไม่ถูกต้อง กรุณาตรวจสอบอีกครั้งครับ';
-        statusEl.className = 'redeem-status error';
-        return;
-      }
-
-      // Check validity window
-      const now = Date.now();
-      if (now < CODE_START || now > CODE_END) {
-        statusEl.textContent = '❌ โค้ดนี้หมดอายุแล้ว หรือยังไม่ถึงเวลาเปิดใช้งานครับ';
         statusEl.className = 'redeem-status error';
         return;
       }
@@ -3368,19 +3343,45 @@
         return;
       }
 
-      // Activate RAM AI PRO and RAM CODE PRO together.
-      const expiry = now + found.days * 24 * 60 * 60 * 1000;
-      const proState = getProState();
-      proState.aiPro = { expiry, redeemedAt: now };
-      proState.codePro = { expiry, redeemedAt: now };
-      saveProState(proState);
+      const originalLabel = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'กำลังตรวจสอบ...';
 
-      const expDate = formatExpiry(new Date(expiry));
-      statusEl.textContent = `🎉 ปลดล็อก RAM AI PRO และ RAM CODE PRO สำเร็จ! ใช้งานได้ถึง ${expDate}`;
-      statusEl.className = 'redeem-status success';
-      renderProStatus();
-      updateHeaderProLogo(appState.currentAppMode || 'chat');
-      updateModelSelectorPro();
+      try {
+        const res = await fetch(`${API_BASE}/api/redeem`, {
+          method: 'POST',
+          headers: authHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({ code })
+        });
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+          statusEl.textContent = `❌ ${data.error || 'ไม่สามารถใช้โค้ดนี้ได้ครับ'}`;
+          statusEl.className = 'redeem-status error';
+          return;
+        }
+
+        // Server validated the code (and, if configured, counted this user against its max-uses limit)
+        const proState = getProState();
+        proState.aiPro = { expiry: data.expiry, redeemedAt: Date.now() };
+        proState.codePro = { expiry: data.expiry, redeemedAt: Date.now() };
+        saveProState(proState);
+
+        const expDate = formatExpiry(new Date(data.expiry));
+        statusEl.textContent = data.alreadyRedeemed
+          ? `✅ คุณเคยปลดล็อกโค้ดนี้แล้ว ใช้งานได้ถึง ${expDate}`
+          : `🎉 ปลดล็อก RAM AI PRO และ RAM CODE PRO สำเร็จ! ใช้งานได้ถึง ${expDate}`;
+        statusEl.className = 'redeem-status success';
+        renderProStatus();
+        updateHeaderProLogo(appState.currentAppMode || 'chat');
+        updateModelSelectorPro();
+      } catch (e) {
+        statusEl.textContent = '❌ ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่อีกครั้งครับ';
+        statusEl.className = 'redeem-status error';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = originalLabel;
+      }
     };
 
     updateGoogleUI();
