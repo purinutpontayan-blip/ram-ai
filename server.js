@@ -63,7 +63,6 @@ function requireAuth(req) {
 //
 // ----- Google Sheet setup (ไม่ต้องใช้ API key) -----
 //   1. เปิดชีต → Share → เปลี่ยนเป็น "Anyone with the link" → Viewer
-//      (จำเป็น เพราะดึงข้อมูลแบบ public CSV export โดยไม่ผ่าน OAuth/API key)
 //   2. Sheet layout — แถวที่ 1 เป็น header (จะถูกข้าม), ข้อมูลเริ่มแถวที่ 2:
 //        A: code          e.g. RAM_AI_V1.0
 //        B: days          e.g. 15            (PRO days granted)
@@ -73,9 +72,11 @@ function requireAuth(req) {
 //      รูปแบบวันที่: YYYY-MM-DDTHH:mm:ss+07:00
 //   3. ตั้งค่า environment variables บนเซิร์ฟเวอร์:
 //        REDEEM_SHEET_ID   = ID ที่อยู่ใน URL ของชีต (…/spreadsheets/d/THIS_PART/edit)
-//        REDEEM_SHEET_NAME = ชื่อแท็บ (optional, default 'Sheet1')
+//        REDEEM_SHEET_NAME = ชื่อแท็บ (optional, default 'Sheet1') — ต้องตรงกับชื่อแท็บจริงเป๊ะๆ
 //   4. แก้ไขแถวในชีตได้ตลอดเวลา — ระบบจะดึงใหม่ภายใน ~1 นาที ไม่ต้อง redeploy
 //   NOTE: ถ้าไม่ได้ตั้งค่า REDEEM_SHEET_ID หรือดึงชีตไม่สำเร็จ จะไม่มีโค้ดใดใช้งานได้เลย
+//   DEBUG: ดู Render → Logs หลังกดปลดล็อก จะเห็นบรรทัด [redeem] บอกว่าดึงโค้ดได้กี่ตัว
+//          และโค้ดที่ผู้ใช้กรอกตรงกับที่มีอยู่หรือไม่
 
 // Fallback window — ใช้เฉพาะกรณีแถวในชีตไม่ได้กรอก start/end
 const REDEEM_DEFAULT_START = new Date('2026-08-14T00:00:00+07:00').getTime();
@@ -87,7 +88,8 @@ let redeemCodesCache = null;
 let redeemCodesCacheAt = 0;
 
 // Minimal CSV line parser — handles quoted fields with embedded commas/quotes,
-// which is all Google's CSV export produces.
+// which is all Google's CSV export produces. Trims every field to kill stray
+// whitespace that would otherwise make a code fail to match.
 function parseCsvLine(line) {
   const fields = [];
   let cur = '';
@@ -106,7 +108,7 @@ function parseCsvLine(line) {
     }
   }
   fields.push(cur);
-  return fields;
+  return fields.map(f => f.trim());
 }
 
 async function fetchCodesFromSheet() {
@@ -118,7 +120,8 @@ async function fetchCodesFromSheet() {
   const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(REDEEM_SHEET_NAME)}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Google Sheets CSV export error: ${res.status}`);
-  const csvText = await res.text();
+  let csvText = await res.text();
+  csvText = csvText.replace(/^\uFEFF/, ''); // strip BOM if present — Google sometimes adds it
 
   const lines = csvText.split(/\r?\n/).filter(l => l.trim() !== '');
   const dataLines = lines.slice(1); // skip header row
@@ -126,14 +129,15 @@ async function fetchCodesFromSheet() {
   const codes = {};
   for (const line of dataLines) {
     const [code, days, maxUses, start, end] = parseCsvLine(line);
-    if (!code || !String(code).trim()) continue;
-    codes[String(code).trim().toUpperCase()] = {
+    if (!code) continue;
+    codes[code.toUpperCase()] = {
       days: Number(days) || 0,
-      maxUses: (maxUses !== undefined && String(maxUses).trim() !== '') ? Number(maxUses) : null,
-      start: (start && String(start).trim()) || undefined,
-      end: (end && String(end).trim()) || undefined,
+      maxUses: (maxUses !== undefined && maxUses !== '') ? Number(maxUses) : null,
+      start: start || undefined,
+      end: end || undefined,
     };
   }
+  console.log(`[redeem] Loaded ${Object.keys(codes).length} code(s) from Sheet:`, Object.keys(codes));
   return codes;
 }
 
@@ -284,6 +288,7 @@ http.createServer(async (req, res) => {
       if (!normalized) return send(res, 400, { error: 'กรุณากรอกโค้ดก่อนครับ' });
 
       const codesTable = await getRedeemCodes();
+      console.log(`[redeem] User submitted code: "${normalized}" — available: [${Object.keys(codesTable).join(', ')}]`);
       const cfg = codesTable[normalized];
       if (!cfg) return send(res, 400, { error: 'โค้ดไม่ถูกต้อง กรุณาตรวจสอบอีกครั้งครับ' });
 
