@@ -2670,6 +2670,8 @@
       activeChat.conversation.push({ role: 'user', parts });
       saveState();
 
+      const modelKey = appState.currentAppMode === 'code' ? selectedCodeModel : selectedAiModel;
+
       currentAbortController = new AbortController();
       let response;
       try {
@@ -2684,8 +2686,28 @@
         throw new Error('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาตรวจสอบว่าได้เปิดรัน node server.js แล้วหรือยัง');
       }
 
-      const data = await response.json();
       if (response.status === 429) throw new Error('กำลังรอรีเซ็ต... โปรดรอสักครู่แล้วลองใหม่อีกครั้งครับ');
+
+      // 500/502/503/504 (server crashed, gateway error, or model overloaded) —
+      // treat the currently selected model as temporarily unavailable
+      if ([500, 502, 503, 504].includes(response.status)) {
+        const overloadErr = new Error('MODEL_OVERLOADED');
+        overloadErr.isModelOverload = true;
+        overloadErr.modelKey = modelKey;
+        throw overloadErr;
+      }
+
+      let data;
+      try {
+        data = await response.json();
+      } catch {
+        // Body wasn't valid JSON (e.g. a raw gateway error page) — same treatment
+        const overloadErr = new Error('MODEL_OVERLOADED');
+        overloadErr.isModelOverload = true;
+        overloadErr.modelKey = modelKey;
+        throw overloadErr;
+      }
+
       if (!response.ok) throw new Error(data.error || 'ไม่สามารถติดต่อ Gemini ได้');
 
       activeChat.conversation.push({ role: 'model', parts: [{ text: data.text }] });
@@ -3058,6 +3080,32 @@
             // Retry sending
             send(value);
           };
+        } else if (error.isModelOverload) {
+          // Model is full/overloaded (502/503/etc) — lock its button, switch to a fallback model, and retry
+          setGenerating(false);
+          currentAbortController = null;
+
+          const failedModel = error.modelKey;
+          const switchedTo = markModelUnavailable(failedModel);
+
+          // Clean up the message that failed so retrying doesn't duplicate it
+          const activeChat = getActiveChat();
+          if (activeChat && activeChat.conversation.length > 0 && activeChat.conversation[activeChat.conversation.length - 1].role === 'user') {
+            activeChat.conversation.pop();
+          }
+          const userMsgs = document.querySelectorAll('.message.user');
+          if (userMsgs.length > 0) userMsgs[userMsgs.length - 1].remove();
+          saveState();
+
+          const notice = document.createElement('article');
+          notice.className = 'message bot';
+          notice.innerHTML = `<div class="avatar bot">R</div><div class="bubble"><div style="color: var(--rose); font-weight: 500;">โมเดล "${getModelLabel(failedModel)}" เต็มชั่วคราวครับ ${switchedTo ? `กำลังสลับไปใช้ "${getModelLabel(switchedTo)}" ให้อัตโนมัติ และลองใหม่...` : 'ไม่มีโมเดลสำรองให้สลับตอนนี้ กรุณาลองใหม่ภายหลังครับ'}</div></div>`;
+          messages.append(notice);
+          messages.scrollTop = messages.scrollHeight;
+
+          if (switchedTo) {
+            setTimeout(() => { notice.remove(); send(value); }, 1200);
+          }
         } else if (error.message.includes('กำลังรอรีเซ็ต') || error.message.includes('429') || error.message.includes('รอ')) {
           // 429 Rate limit — show countdown and auto-retry
           setGenerating(false);
@@ -3392,6 +3440,97 @@
         : document.querySelector('.model-btn-ai.active');
       modelSelectText.textContent = activeBtn?.querySelector('.model-dd-name')?.textContent
         || (currentAppMode === 'code' ? 'RAM CODE 1.0' : 'RAM AI 2.0');
+    }
+
+    // ===== Model overload handling (502/503/etc) — lock the button, switch to a fallback =====
+    const unavailableModels = new Set();
+    const MODEL_UNLOCK_DELAY_MS = 5 * 60 * 1000; // try the locked model again after 5 นาที
+
+    function getModelButton(modelKey) {
+      return document.querySelector(`.model-btn-code[data-model="${modelKey}"], .model-btn-ai[data-model="${modelKey}"]`);
+    }
+
+    function getModelLabel(modelKey) {
+      return getModelButton(modelKey)?.querySelector('.model-dd-name')?.textContent?.trim() || modelKey;
+    }
+
+    function modelHasAccess(modelKey) {
+      if (modelKey === 'code3') return isProActive('codePro');
+      if (modelKey === 'ai3' || modelKey === 'ai4') return isProActive('aiPro');
+      return true;
+    }
+
+    function pickNextAvailableModel(kind, excludeKey) {
+      const order = kind === 'code' ? ['code1', 'code2', 'code3'] : ['ai1', 'ai2', 'ai3', 'ai4'];
+      for (const m of order) {
+        if (m === excludeKey) continue;
+        if (unavailableModels.has(m)) continue;
+        if (!modelHasAccess(m)) continue;
+        return m;
+      }
+      return null;
+    }
+
+    function lockModelButton(modelKey) {
+      const btn = getModelButton(modelKey);
+      if (!btn) return;
+      btn.disabled = true;
+      btn.classList.add('model-locked');
+      btn.style.opacity = '0.4';
+      btn.style.pointerEvents = 'none';
+      btn.title = 'เต็มชั่วคราว ระบบจะปลดล็อกให้ภายหลัง';
+      const content = btn.querySelector('.dd-content');
+      if (content && !content.querySelector('.model-full-badge')) {
+        const badge = document.createElement('span');
+        badge.className = 'model-full-badge';
+        badge.textContent = 'เต็มชั่วคราว';
+        badge.style.cssText = 'display:block; color:var(--rose); font-size:11px; font-weight:600; margin-top:2px;';
+        content.appendChild(badge);
+      }
+    }
+
+    function unlockModelButton(modelKey) {
+      const btn = getModelButton(modelKey);
+      if (!btn) return;
+      btn.disabled = false;
+      btn.classList.remove('model-locked');
+      btn.style.opacity = '1';
+      btn.style.pointerEvents = '';
+      btn.title = '';
+      btn.querySelector('.model-full-badge')?.remove();
+    }
+
+    function scheduleModelUnlock(modelKey) {
+      setTimeout(() => {
+        unavailableModels.delete(modelKey);
+        if (modelHasAccess(modelKey)) unlockModelButton(modelKey);
+      }, MODEL_UNLOCK_DELAY_MS);
+    }
+
+    // Marks a model as temporarily overloaded, locks its button, and switches the
+    // active selection (for its mode) to the next available model. Returns the new
+    // model key that was switched to, or null if no fallback was available.
+    function markModelUnavailable(modelKey) {
+      const isCode = modelKey.startsWith('code');
+      if (!unavailableModels.has(modelKey)) {
+        unavailableModels.add(modelKey);
+        lockModelButton(modelKey);
+        scheduleModelUnlock(modelKey);
+      }
+
+      const next = pickNextAvailableModel(isCode ? 'code' : 'ai', modelKey);
+      if (!next) return null;
+
+      if (isCode) {
+        selectedCodeModel = next;
+        localStorage.setItem('ram_code_model', next);
+        updateCodeModelUI();
+      } else {
+        selectedAiModel = next;
+        localStorage.setItem('ram_ai_model', next);
+        updateAiModelUI();
+      }
+      return next;
     }
 
     document.querySelectorAll('.model-btn-code').forEach(btn => {
