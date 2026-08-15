@@ -1999,7 +1999,7 @@
           <div class="redeem-card">
             <div class="redeem-body">
               <p class="redeem-desc" id="redeemDesc">
-                ปลดล็อก <strong>RAM AI PRO และ RAM CODE PRO
+                ปลดล็อก <strong>RAM AI PRO และ RAM CODE PRO</strong> 
               </p>
               <div class="redeem-input-wrap">
                 <input class="redeem-input" id="redeemCodeInput" type="text" placeholder="กรอกโค้ดของคุณ..."
@@ -2180,6 +2180,10 @@
         <div class="welcome" id="welcome">
           <h2>สวัสดีครับ ผมคือ RAM AI</h2>
           <p>ส่งโจทย์การบ้านหรือแนบรูปโจทย์มาได้เลยครับ<br>ผมจะช่วยอธิบายวิธีคิดทีละขั้น เพื่อให้คุณทำได้ด้วยตัวเอง</p>
+          <div class="suggestions">
+            <button onclick="send(this.textContent)">ช่วยอธิบายโจทย์คณิตศาสตร์</button>
+            <button onclick="send(this.textContent)">สรุปบทเรียนวิทยาศาสตร์</button>
+            <button onclick="send(this.textContent)">ช่วยตรวจภาษาอังกฤษ</button>
           </div>
         </div>
       `;
@@ -3353,6 +3357,20 @@
           headers: authHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({ code })
         });
+
+        if (res.status === 401) {
+          // Session expired/invalid server-side (e.g. server restarted) even though
+          // the browser still thought it was logged in — clear the stale state so
+          // the UI matches reality and the user knows to log in again.
+          googleUser = null;
+          localStorage.removeItem('ram_google_user');
+          localStorage.removeItem('ram_session_token');
+          updateGoogleUI();
+          statusEl.textContent = '⚠️ เซสชันหมดอายุครับ กรุณาเข้าสู่ระบบด้วย Google อีกครั้งแล้วลองใหม่';
+          statusEl.className = 'redeem-status error';
+          return;
+        }
+
         const data = await res.json();
 
         if (!res.ok || !data.success) {
@@ -3369,7 +3387,7 @@
 
         const expDate = formatExpiry(new Date(data.expiry));
         statusEl.textContent = data.alreadyRedeemed
-          ? `✅ คุณเคยปลดล็อกโค้ดนี้แล้ว ใช้งานได้ถึง ${expDate}`
+          ? `✅ คุณเคยปลดล็อกโค้ดนี้แล้วครับ ใช้งานได้ถึง ${expDate}`
           : `🎉 ปลดล็อก RAM AI PRO และ RAM CODE PRO สำเร็จ! ใช้งานได้ถึง ${expDate}`;
         statusEl.className = 'redeem-status success';
         renderProStatus();
