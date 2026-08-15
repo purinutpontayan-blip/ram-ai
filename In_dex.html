@@ -2881,10 +2881,70 @@
       if (save) saveState();
     }
 
+    // ===== Free-tier quota (non-PRO users) =====
+    const FREE_QUOTA_LIMIT = 12;
+    const QUOTA_WINDOW_MS = 24 * 60 * 60 * 1000; // resets 24 ชม. after the window started
+    const QUOTA_KEY = 'ram_free_quota';
+
+    function pad2(n) { return String(n).padStart(2, '0'); }
+
+    function getQuotaState() {
+      try {
+        const s = JSON.parse(localStorage.getItem(QUOTA_KEY) || 'null');
+        if (s && typeof s.count === 'number' && typeof s.resetAt === 'number') return s;
+      } catch { }
+      return null;
+    }
+
+    function ensureQuotaWindow() {
+      const now = Date.now();
+      let s = getQuotaState();
+      if (!s || now >= s.resetAt) {
+        s = { count: 0, resetAt: now + QUOTA_WINDOW_MS };
+        localStorage.setItem(QUOTA_KEY, JSON.stringify(s));
+      }
+      return s;
+    }
+
+    function formatQuotaResetText(resetAt) {
+      const d = new Date(resetAt);
+      const dateStr = `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`;
+      const timeStr = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+      return `คุณใช้เกินจำนวนโควต้าแล้วครับ จะรีเซ็ตใน ${dateStr} เวลา: ${timeStr} (24 ชม.)`;
+    }
+
+    // Which PRO flag gates quota, based on which mode the user is currently in
+    function currentQuotaProType() {
+      return (appState.currentAppMode === 'code') ? 'codePro' : 'aiPro';
+    }
+
+    function isFreeQuotaExceeded() {
+      if (isProActive(currentQuotaProType())) return false; // PRO users have no quota limit
+      const s = ensureQuotaWindow();
+      return s.count >= FREE_QUOTA_LIMIT;
+    }
+
+    function consumeFreeQuota() {
+      if (isProActive(currentQuotaProType())) return; // PRO usage isn't counted
+      const s = ensureQuotaWindow();
+      s.count += 1;
+      localStorage.setItem(QUOTA_KEY, JSON.stringify(s));
+    }
+
     async function send(value) {
       if (isGenerating) return;
       const text = (value || '').trim();
       if (!text && !attachment) return;
+
+      // Free-tier quota check — block before anything else happens
+      if (isFreeQuotaExceeded()) {
+        const s = ensureQuotaWindow();
+        document.getElementById('welcome')?.remove();
+        add(formatQuotaResetText(s.resetAt), 'bot', null, false, true);
+        prompt.value = '';
+        prompt.style.height = '48px';
+        return;
+      }
 
       // If animation is playing, queue the message
       if (isAnimating) {
@@ -2945,6 +3005,7 @@
         const reply = await answer(text || 'ช่วยอธิบายโจทย์ในรูปอย่างเป็นขั้นตอน', file, location);
         loading.remove();
         add(reply, 'bot', null, false, true);
+        consumeFreeQuota();
 
         if (isNewChat) {
           const userMsg = text || 'ช่วยอธิบายโจทย์ในรูป';
