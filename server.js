@@ -7,7 +7,31 @@ const { OAuth2Client } = require('google-auth-library');
 const root = __dirname;
 const port = Number(process.env.PORT || 10000);
 const transfers = new Map();
-const sessions = new Map(); // sessionToken -> { email, name, picture, expiresAt }
+
+// sessionToken -> { email, name, picture, expiresAt }
+// Persisted to disk so logins survive a server restart (e.g. Render free-tier
+// spinning the process down after inactivity) — otherwise everyone's session
+// token would silently become invalid (401) even though the browser still
+// thinks it's logged in.
+const SESSIONS_FILE = path.join(root, 'data', 'sessions.json');
+function loadSessions() {
+  const map = new Map();
+  try {
+    const raw = JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf8'));
+    const now = Date.now();
+    for (const [token, session] of Object.entries(raw)) {
+      if (session.expiresAt > now) map.set(token, session);
+    }
+  } catch { /* no file yet, or unreadable — start empty */ }
+  return map;
+}
+function saveSessions() {
+  try {
+    fs.mkdirSync(path.dirname(SESSIONS_FILE), { recursive: true });
+    fs.writeFileSync(SESSIONS_FILE, JSON.stringify(Object.fromEntries(sessions), null, 2));
+  } catch (e) { console.error('Failed to save sessions:', e); }
+}
+const sessions = loadSessions();
 
 const envFile = path.join(root, '.env');
 if (fs.existsSync(envFile)) {
@@ -28,7 +52,7 @@ function requireAuth(req) {
   if (!token) return null;
   const session = sessions.get(token);
   if (!session || session.expiresAt < Date.now()) {
-    if (session) sessions.delete(token);
+    if (session) { sessions.delete(token); saveSessions(); }
     return null;
   }
   return session;
@@ -50,11 +74,11 @@ const REDEEM_CODES = {
   },
   'RAM_CODE_V2.0': {
     days: 15,
-    maxUses: 1,
+    maxUses: 100,
     start: '2026-08-14T00:00:00+07:00',
     end: '2026-08-18T23:59:59+07:00',   // วันหมดอายุของโค้ดนี้
   },
-  'RAM_PRO_V1.0': {
+  'RAM_PRO_V3.0': {
     days: 15,
     maxUses: 50,
     start: '2026-08-14T00:00:00+07:00',
@@ -141,6 +165,7 @@ http.createServer(async (req, res) => {
         picture: payload.picture,
         expiresAt: Date.now() + 1000 * 60 * 60 * 24 * 7 // 7 วัน
       });
+      saveSessions();
       return send(res, 200, {
         success: true,
         token: sessionToken,
@@ -154,7 +179,7 @@ http.createServer(async (req, res) => {
   if (req.method === 'POST' && req.url === '/api/auth/logout') {
     const authHeader = req.headers['authorization'] || '';
     const token = authHeader.replace(/^Bearer\s+/i, '').trim();
-    if (token) sessions.delete(token);
+    if (token) { sessions.delete(token); saveSessions(); }
     return send(res, 200, { success: true });
   }
 
