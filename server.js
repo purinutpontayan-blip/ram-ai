@@ -410,7 +410,7 @@ http.createServer(async (req, res) => {
     if (mode === 'code') {
       // Map codeModel from client to actual Gemini model
       const CODE_MODELS = {
-        'code1': 'gemini-2.5-flash',  // RAM CODE 1.0
+        'code1': 'gemini-3-flash',  // RAM CODE 1.0
         'code2': 'gemini-3.6-flash',  // RAM CODE 2.0
         'code3': 'gemini-3.7-flash',  // RAM CODE 3.0 (PRO)
       };
