@@ -814,6 +814,19 @@
       transform: scale(1.02);
     }
 
+    .attachment-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 0 0 12px;
+    }
+
+    .attachment-group .attachment {
+      margin: 0;
+      max-width: 160px;
+      max-height: 160px;
+    }
+
     .attachment-file {
       display: flex;
       align-items: center;
@@ -952,6 +965,56 @@
       height: 48px;
       border-radius: 10px;
       object-fit: cover;
+    }
+
+    .preview-thumbs {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .preview-thumb {
+      position: relative;
+      width: 48px;
+      height: 48px;
+      flex-shrink: 0;
+    }
+
+    .preview-thumb img {
+      width: 48px;
+      height: 48px;
+      border-radius: 10px;
+      object-fit: cover;
+      display: block;
+    }
+
+    .preview-thumb .thumb-remove {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--rose);
+      color: #fff;
+      border: 2px solid #fff;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      font-size: 11px;
+      line-height: 1;
+      padding: 0;
+    }
+
+    .preview-thumb .thumb-remove:hover {
+      background: #e11d48;
+    }
+
+    .preview-count {
+      font-size: 12px;
+      color: #64748b;
+      white-space: nowrap;
     }
 
     .remove {
@@ -1953,14 +2016,15 @@
       </section>
       <div class="composer">
         <div class="preview" id="preview">
-          <img id="previewImage" alt="ตัวอย่างรูปที่แนบ" />
+          <div class="preview-thumbs" id="previewThumbs" style="display:none;"></div>
+          <img id="previewImage" alt="ตัวอย่างรูปที่แนบ" style="display:none;" />
           <svg id="previewFileIcon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none; flex-shrink:0; color:var(--rose);">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
             <polyline points="14 2 14 8 20 8"></polyline>
           </svg>
           <span id="fileName"></span>
-          <button class="remove" id="removeFile" title="ลบไฟล์">
+          <button class="remove" id="removeFile" title="ลบไฟล์ทั้งหมด">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -1969,8 +2033,8 @@
           </button>
         </div>
         <form class="chat-form" id="chatForm">
-          <label class="icon-btn" title="แนบไฟล์ (รูปภาพ / PDF)">
-            <input id="imageInput" type="file" accept="image/*,application/pdf" hidden />
+          <label class="icon-btn" title="แนบไฟล์ (รูปภาพสูงสุด 5 รูป หรือ PDF)">
+            <input id="imageInput" type="file" accept="image/*,application/pdf" multiple hidden />
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
               <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
@@ -2272,11 +2336,13 @@
       history = document.querySelector('#history'),
       imageInput = document.querySelector('#imageInput'),
       preview = document.querySelector('#preview'),
+      previewThumbs = document.querySelector('#previewThumbs'),
       previewImage = document.querySelector('#previewImage'),
       previewFileIcon = document.querySelector('#previewFileIcon'),
       fileName = document.querySelector('#fileName');
 
-    let attachment = null;
+    const MAX_IMAGES = 5;
+    let attachments = [];
     let isGenerating = false;
     let currentAbortController = null;
     let isAnimating = false;
@@ -2519,17 +2585,18 @@
       } else {
         activeChat.conversation.forEach(msg => {
           const textParts = msg.parts.map(p => p.text).filter(Boolean).join('\n');
-          const filePart = msg.parts.find(p => p.inlineData);
-          let file = null;
-          if (filePart) {
-            const mimeType = filePart.inlineData.mimeType;
-            file = {
-              url: `data:${mimeType};base64,${filePart.inlineData.data}`,
+          const fileParts = msg.parts.filter(p => p.inlineData);
+          const files = fileParts.map(p => {
+            const mimeType = p.inlineData.mimeType;
+            return {
+              url: `data:${mimeType};base64,${p.inlineData.data}`,
               mimeType,
+              data: p.inlineData.data,
+              isImage: mimeType.startsWith('image/'),
               name: mimeType === 'application/pdf' ? 'ไฟล์ PDF ที่แนบ' : undefined
             };
-          }
-          add(textParts, msg.role === 'model' ? 'bot' : 'user', file, false);
+          });
+          add(textParts, msg.role === 'model' ? 'bot' : 'user', files, false);
         });
       }
     }
@@ -2792,60 +2859,139 @@
       }
     }
 
-    function attach(file) {
-      if (!file) return;
-      const isImage = file.type.startsWith('image/');
-      const isPdf = file.type === 'application/pdf';
-      const isText = !isImage && !isPdf;
-
-      if (isText && appState.currentAppMode !== 'code') {
-        return alert('โหมดปกติรองรับเฉพาะไฟล์รูปภาพและ PDF ครับ หากต้องการอัปโหลดไฟล์โค้ด กรุณาเลือกโหมด RAM CODE');
-      }
-
-      const reader = new FileReader();
-      if (isText) {
-        reader.onload = () => {
-          attachment = {
-            name: file.name,
-            mimeType: 'text/plain',
-            textContent: reader.result,
-            isText: true
-          };
-          previewImage.style.display = 'none';
-          previewFileIcon.style.display = 'none';
-          fileName.textContent = file.name;
-          preview.classList.add('show');
-        };
-        reader.readAsText(file);
-      } else {
-        reader.onload = () => {
-          attachment = {
-            name: file.name,
-            mimeType: file.type,
-            data: reader.result.split(',')[1],
-            url: reader.result,
-            isText: false
-          };
-          if (isImage) {
-            previewImage.style.display = 'block';
-            previewImage.src = attachment.url;
-            previewFileIcon.style.display = 'none';
-          } else {
-            previewImage.style.display = 'none';
-            previewFileIcon.style.display = 'block';
-          }
-          fileName.textContent = file.name;
-          preview.classList.add('show');
-        };
+    function readFileAsDataURL(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
         reader.readAsDataURL(file);
-      }
+      });
     }
 
-    imageInput.onchange = () => attach(imageInput.files[0]);
+    function readFileAsText(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsText(file);
+      });
+    }
+
+    // Renders the composer's preview strip from the `attachments` array.
+    // Images are shown as plain thumbnails (no filename) — up to MAX_IMAGES.
+    // A PDF or code file is shown with its icon and filename, one at a time.
+    function renderPreview() {
+      if (!attachments.length) {
+        preview.classList.remove('show');
+        previewThumbs.innerHTML = '';
+        previewThumbs.style.display = 'none';
+        return;
+      }
+
+      const allImages = attachments.every(a => a.isImage);
+
+      if (allImages) {
+        previewImage.style.display = 'none';
+        previewFileIcon.style.display = 'none';
+        fileName.textContent = '';
+        previewThumbs.style.display = 'flex';
+        previewThumbs.innerHTML = '';
+        attachments.forEach((att, idx) => {
+          const thumb = document.createElement('div');
+          thumb.className = 'preview-thumb';
+          const img = document.createElement('img');
+          img.src = att.url;
+          img.alt = 'ตัวอย่างรูปที่แนบ';
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'thumb-remove';
+          btn.title = 'ลบรูปนี้';
+          btn.textContent = '×';
+          btn.onclick = () => {
+            attachments.splice(idx, 1);
+            if (attachments.length === 0) imageInput.value = '';
+            renderPreview();
+          };
+          thumb.appendChild(img);
+          thumb.appendChild(btn);
+          previewThumbs.appendChild(thumb);
+        });
+      } else {
+        previewThumbs.style.display = 'none';
+        previewThumbs.innerHTML = '';
+        previewImage.style.display = 'none';
+        previewFileIcon.style.display = 'block';
+        fileName.textContent = attachments[0].name || '';
+      }
+
+      preview.classList.add('show');
+    }
+
+    // Accepts a File, an array of Files, or a FileList. Images can be
+    // combined up to MAX_IMAGES; a PDF or code file always replaces
+    // whatever was attached before (mixing types isn't supported).
+    async function attach(fileOrFiles) {
+      const files = Array.from(fileOrFiles ? (fileOrFiles.length !== undefined ? fileOrFiles : [fileOrFiles]) : []).filter(Boolean);
+      if (!files.length) return;
+
+      if (files.length === 1) {
+        const f = files[0];
+        const isImage = f.type.startsWith('image/');
+        const isPdf = f.type === 'application/pdf';
+        const isText = !isImage && !isPdf;
+
+        if (isText) {
+          if (appState.currentAppMode !== 'code') {
+            return alert('โหมดปกติรองรับเฉพาะไฟล์รูปภาพและ PDF ครับ หากต้องการอัปโหลดไฟล์โค้ด กรุณาเลือกโหมด RAM CODE');
+          }
+          const textContent = await readFileAsText(f);
+          attachments = [{ name: f.name, mimeType: 'text/plain', textContent, isText: true, isImage: false }];
+          renderPreview();
+          return;
+        }
+
+        if (isPdf) {
+          const url = await readFileAsDataURL(f);
+          attachments = [{ name: f.name, mimeType: f.type, data: url.split(',')[1], url, isText: false, isImage: false }];
+          renderPreview();
+          return;
+        }
+        // single image falls through to the shared image-handling branch below
+      }
+
+      // One or more images: only images can be combined into a single message.
+      const imageFiles = files.filter(f => f.type.startsWith('image/'));
+      const skipped = files.length - imageFiles.length;
+      if (!imageFiles.length) {
+        return alert('เลือกได้เฉพาะไฟล์รูปภาพเมื่อแนบหลายไฟล์พร้อมกันครับ');
+      }
+
+      // A pending PDF/code attachment can't be mixed with images — start fresh.
+      if (attachments.length && !attachments.every(a => a.isImage)) {
+        attachments = [];
+      }
+
+      const room = MAX_IMAGES - attachments.length;
+      const toAdd = imageFiles.slice(0, Math.max(0, room));
+      const overflow = imageFiles.length - toAdd.length;
+
+      for (const f of toAdd) {
+        const url = await readFileAsDataURL(f);
+        attachments.push({ name: f.name, mimeType: f.type, data: url.split(',')[1], url, isText: false, isImage: true });
+      }
+
+      if (overflow > 0 || skipped > 0) {
+        alert(`แนบรูปภาพได้สูงสุด ${MAX_IMAGES} รูปต่อข้อความครับ`);
+      }
+
+      renderPreview();
+    }
+
+    imageInput.onchange = () => { attach(imageInput.files); };
     document.querySelector('#removeFile').onclick = () => {
-      attachment = null;
+      attachments = [];
       imageInput.value = '';
-      preview.classList.remove('show');
+      renderPreview();
     };
 
     // ===== Drag & drop attachment support =====
@@ -2880,8 +3026,7 @@
         e.preventDefault();
         dragCounter = 0;
         dropOverlay.classList.remove('show');
-        const file = e.dataTransfer.files && e.dataTransfer.files[0];
-        if (file) attach(file);
+        if (e.dataTransfer.files && e.dataTransfer.files.length) attach(e.dataTransfer.files);
       });
     })();
 
@@ -2890,19 +3035,16 @@
       // Don't hijack pasting plain text into the prompt box.
       const items = e.clipboardData && e.clipboardData.items;
       if (!items) return;
-      let file = null;
+      const files = [];
       for (const item of items) {
         if (item.kind === 'file') {
           const f = item.getAsFile();
-          if (f && (f.type.startsWith('image/') || f.type === 'application/pdf')) {
-            file = f;
-            break;
-          }
+          if (f && (f.type.startsWith('image/') || f.type === 'application/pdf')) files.push(f);
         }
       }
-      if (file) {
+      if (files.length) {
         e.preventDefault();
-        attach(file);
+        attach(files);
         prompt.focus();
       }
     });
@@ -2920,17 +3062,19 @@
       });
     }
 
-    async function answer(text, file, location) {
+    async function answer(text, files, location) {
       const activeChat = getActiveChat();
       const parts = [];
+      const fileList = files ? (Array.isArray(files) ? files : [files]) : [];
 
       let fullText = text || '';
-      if (file && file.isText) {
-        fullText = `ไฟล์แนบ: ${file.name}\n\`\`\`\n${file.textContent}\n\`\`\`\n\n` + fullText;
+      const textFile = fileList.find(f => f.isText);
+      if (textFile) {
+        fullText = `ไฟล์แนบ: ${textFile.name}\n\`\`\`\n${textFile.textContent}\n\`\`\`\n\n` + fullText;
       }
 
       if (fullText) parts.push({ text: fullText });
-      if (file && !file.isText) parts.push({ inlineData: { mimeType: file.mimeType, data: file.data } });
+      fileList.filter(f => !f.isText).forEach(f => parts.push({ inlineData: { mimeType: f.mimeType, data: f.data } }));
 
       activeChat.conversation.push({ role: 'user', parts });
       saveState();
@@ -3007,7 +3151,7 @@
       }
     }
 
-    function add(text, role, file, save = true, animate = false) {
+    function add(text, role, files, save = true, animate = false) {
       const el = document.createElement('article');
       el.className = `message ${role}`;
       el.innerHTML = `<div class="avatar ${role === 'bot' ? 'bot' : ''}">${role === 'bot' ? '' : 'คุณ'}</div><div class="bubble"></div>`;
@@ -3015,15 +3159,29 @@
 
       const elementsToAppend = [];
 
-      if (file && !file.isText) {
-        const mimeType = file.mimeType || (file.inlineData && file.inlineData.mimeType) || '';
-        if (mimeType.startsWith('image/') || !mimeType) {
-          const img = document.createElement('img');
-          img.className = 'attachment';
-          img.src = file.url || (file.inlineData ? `data:${file.inlineData.mimeType};base64,${file.inlineData.data}` : '');
-          img.alt = 'รูปโจทย์ที่แนบ';
-          elementsToAppend.push(img);
-        } else {
+      const fileList = (files ? (Array.isArray(files) ? files : [files]) : []).filter(f => f && !f.isText);
+      if (fileList.length) {
+        const getMimeType = f => f.mimeType || (f.inlineData && f.inlineData.mimeType) || '';
+        const imageFiles = fileList.filter(f => { const m = getMimeType(f); return m.startsWith('image/') || !m; });
+        const otherFiles = fileList.filter(f => !imageFiles.includes(f));
+
+        // Images render as plain thumbnails, no filename — grouped together
+        // when more than one is attached to the same message.
+        if (imageFiles.length) {
+          const group = document.createElement('div');
+          group.className = 'attachment-group';
+          imageFiles.forEach(file => {
+            const img = document.createElement('img');
+            img.className = 'attachment';
+            img.src = file.url || (file.inlineData ? `data:${file.inlineData.mimeType};base64,${file.inlineData.data}` : '');
+            img.alt = 'รูปโจทย์ที่แนบ';
+            group.appendChild(img);
+          });
+          elementsToAppend.push(group);
+        }
+
+        otherFiles.forEach(file => {
+          const mimeType = getMimeType(file);
           const chip = document.createElement('div');
           chip.className = 'attachment-file';
           chip.title = 'คลิกเพื่อดูไฟล์ฉบับเต็ม';
@@ -3036,7 +3194,7 @@
           `;
           chip.onclick = () => openAttachmentInNewTab(file, mimeType);
           elementsToAppend.push(chip);
-        }
+        });
       }
 
       if (text) {
@@ -3264,7 +3422,7 @@
     async function send(value) {
       if (isGenerating) return;
       const text = (value || '').trim();
-      if (!text && !attachment) return;
+      if (!text && !attachments.length) return;
 
       // Free-tier quota check — block before anything else happens
       if (isFreeQuotaExceeded()) {
@@ -3285,7 +3443,7 @@
       }
 
       document.getElementById('welcome')?.remove();
-      const file = attachment;
+      const files = attachments.slice();
 
       // Ensure we have an active chat
       let activeChat = getActiveChat();
@@ -3303,11 +3461,16 @@
         saveState();
       }
 
+      const textFile = files.find(f => f.isText);
       let displayMsg = text;
-      if (file && file.isText) displayMsg = `[แนบไฟล์โค้ด: ${file.name}]\n` + text;
+      if (textFile) displayMsg = `[แนบไฟล์โค้ด: ${textFile.name}]\n` + text;
 
-      const defaultAttachMsg = (file && file.mimeType === 'application/pdf') ? 'ช่วยดูไฟล์ PDF นี้ให้หน่อยครับ' : 'ช่วยดูรูปโจทย์นี้ให้หน่อยครับ';
-      add(displayMsg || defaultAttachMsg, 'user', (file && !file.isText) ? file : null, false);
+      const hasPdf = files.some(f => f.mimeType === 'application/pdf');
+      const imageCount = files.filter(f => f.isImage).length;
+      const defaultAttachMsg = hasPdf
+        ? 'ช่วยดูไฟล์ PDF นี้ให้หน่อยครับ'
+        : (imageCount > 1 ? 'ช่วยดูรูปโจทย์เหล่านี้ให้หน่อยครับ' : 'ช่วยดูรูปโจทย์นี้ให้หน่อยครับ');
+      add(displayMsg || defaultAttachMsg, 'user', files.filter(f => !f.isText), false);
 
       prompt.value = '';
       prompt.style.height = '48px';
@@ -3333,7 +3496,7 @@
           location = await requestLocation();
         }
 
-        const reply = await answer(text || 'ช่วยอธิบายโจทย์ในรูปอย่างเป็นขั้นตอน', file, location);
+        const reply = await answer(text || 'ช่วยอธิบายโจทย์ในรูปอย่างเป็นขั้นตอน', files, location);
         loading.remove();
         add(reply, 'bot', null, false, true);
         consumeFreeQuota();
