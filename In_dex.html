@@ -369,7 +369,7 @@
       opacity: 1;
     }
 
-    .history-item button {
+    .history-item button:not(.del-btn) {
       flex: 1;
       border: 0;
       border-radius: 12px;
@@ -386,7 +386,7 @@
       transition: var(--transition);
     }
 
-    .history-item button:hover {
+    .history-item button:not(.del-btn):hover {
       color: var(--deep-green);
     }
 
@@ -588,6 +588,10 @@
       gap: 10px;
     }
 
+    .header-model-slot {
+      display: none;
+    }
+
     .header-pro-logo {
       display: none;
       width: 52px;
@@ -657,6 +661,30 @@
       color: var(--muted);
       line-height: 1.8;
       font-size: 18px;
+    }
+
+    .typing-cursor {
+      display: inline-block;
+      width: 3px;
+      height: 0.95em;
+      margin-left: 3px;
+      vertical-align: -0.15em;
+      background: var(--deep-green);
+      border-radius: 1px;
+      animation: blinkCursor 0.85s step-end infinite;
+    }
+
+    @keyframes blinkCursor {
+
+      0%,
+      50% {
+        opacity: 1;
+      }
+
+      50.01%,
+      100% {
+        opacity: 0;
+      }
     }
 
     .suggestions {
@@ -784,6 +812,72 @@
 
     .attachment:hover {
       transform: scale(1.02);
+    }
+
+    .attachment-file {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      max-width: 300px;
+      margin: 0 0 12px;
+      padding: 10px 14px;
+      border-radius: 12px;
+      background: #f1f5f9;
+      border: 1px solid var(--line);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+    }
+
+    .attachment-file svg {
+      flex-shrink: 0;
+      color: var(--rose);
+    }
+
+    .attachment-file span {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--ink);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .file-preview-chip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .file-preview-chip svg {
+      flex-shrink: 0;
+      color: var(--rose);
+    }
+
+    .drop-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(16, 185, 129, 0.1);
+      backdrop-filter: blur(4px);
+      pointer-events: none;
+    }
+
+    .drop-overlay.show {
+      display: flex;
+    }
+
+    .drop-overlay-card {
+      padding: 28px 40px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.95);
+      border: 2px dashed var(--green);
+      box-shadow: var(--shadow);
+      text-align: center;
+      font-weight: 600;
+      color: var(--deep-green);
+      font-size: 16px;
     }
 
     .loading-dots {
@@ -997,6 +1091,14 @@
       white-space: nowrap;
     }
 
+    .model-select-btn svg {
+      transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .model-select-btn.open svg {
+      transform: rotate(180deg);
+    }
+
     .model-select-btn:hover {
       background: #e2e8f0;
       color: var(--ink);
@@ -1020,6 +1122,7 @@
 
     .model-dropdown-menu.show {
       display: flex;
+      animation: slideUp 0.2s ease-out;
     }
 
     .model-dd-item {
@@ -1360,7 +1463,37 @@
       }
 
       .status {
+        display: none;
+      }
+
+      .header-right {
         margin-left: auto;
+      }
+
+      .header-model-slot {
+        display: flex;
+        align-items: center;
+      }
+
+      .model-selector-wrap.in-header .model-select-btn {
+        height: auto;
+        padding: 7px 14px;
+        background: var(--mint);
+        color: var(--deep-green);
+        border: none;
+        border-radius: 20px;
+        font-size: 13px;
+      }
+
+      .model-selector-wrap.in-header .model-select-btn:hover {
+        background: var(--mint);
+      }
+
+      .model-selector-wrap.in-header .model-dropdown-menu {
+        bottom: auto;
+        top: calc(100% + 10px);
+        right: 0;
+        min-width: 240px;
       }
 
       #messages {
@@ -1750,6 +1883,9 @@
 </head>
 
 <body>
+  <div class="drop-overlay" id="dropOverlay">
+    <div class="drop-overlay-card">วางไฟล์ที่นี่เพื่อแนบ (รูปภาพ / PDF)</div>
+  </div>
   <div class="app">
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
     <aside>
@@ -1802,6 +1938,7 @@
         <div class="header-right">
           <img class="header-pro-logo" id="headerProLogo" alt="RAM PRO" />
           <span class="status"><i class="dot"></i> RAM AI ขับเคลื่อนโดย Gemini</span>
+          <div class="header-model-slot" id="headerModelSlot"></div>
         </div>
       </header>
       <section id="messages">
@@ -1810,8 +1947,13 @@
       <div class="composer">
         <div class="preview" id="preview">
           <img id="previewImage" alt="ตัวอย่างรูปที่แนบ" />
+          <svg id="previewFileIcon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none; flex-shrink:0; color:var(--rose);">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+          </svg>
           <span id="fileName"></span>
-          <button class="remove" id="removeFile" title="ลบรูป">
+          <button class="remove" id="removeFile" title="ลบไฟล์">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -1820,8 +1962,8 @@
           </button>
         </div>
         <form class="chat-form" id="chatForm">
-          <label class="icon-btn" title="แนบรูป">
-            <input id="imageInput" type="file" accept="image/*" hidden />
+          <label class="icon-btn" title="แนบไฟล์ (รูปภาพ / PDF)">
+            <input id="imageInput" type="file" accept="image/*,application/pdf" hidden />
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
               <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
@@ -1917,6 +2059,7 @@
                 </button>
               </div>
             </div>
+            <span id="modelSelectorAnchor" style="display:none;"></span>
 
             <button class="send" id="sendBtn" aria-label="ส่งข้อความ" type="submit">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -2125,6 +2268,7 @@
       imageInput = document.querySelector('#imageInput'),
       preview = document.querySelector('#preview'),
       previewImage = document.querySelector('#previewImage'),
+      previewFileIcon = document.querySelector('#previewFileIcon'),
       fileName = document.querySelector('#fileName');
 
     let attachment = null;
@@ -2163,20 +2307,71 @@
 
     // Welcome message HTML
     function getWelcomeHTML() {
-      if (appState.currentAppMode === 'code') {
-        return `
-          <div class="welcome" id="welcome">
-            <h2>สวัสดีครับ ผมคือ RAM CODE</h2>
-            <p>ส่งโจทย์ปัญหา หรือแนบไฟล์โค้ดมาได้เลยครับ<br>ผมจะช่วยเขียนโค้ดและอธิบายให้คุณเข้าใจ</p>
-          </div>
-        `;
-      }
       return `
         <div class="welcome" id="welcome">
-          <h2>สวัสดีครับ ผมคือ RAM AI</h2>
-          <p>ส่งโจทย์การบ้านหรือแนบรูปโจทย์มาได้เลยครับ<br>ผมจะช่วยอธิบายวิธีคิดทีละขั้นตอน</p>
+          <h2><span class="typing-line" data-line="title"></span></h2>
+          <p><span class="typing-line" data-line="line1"></span><br><span class="typing-line" data-line="line2"></span></p>
         </div>
       `;
+    }
+
+    // Text content per mode, typed out character-by-character by animateWelcomeTyping()
+    function getWelcomeLines() {
+      return appState.currentAppMode === 'code'
+        ? {
+          title: 'สวัสดีครับ ผมคือ RAM CODE',
+          line1: 'ส่งโจทย์ปัญหา หรือแนบไฟล์โค้ดมาได้เลยครับ',
+          line2: 'ผมจะช่วยเขียนโค้ดและอธิบายให้คุณเข้าใจ'
+        }
+        : {
+          title: 'สวัสดีครับ ผมคือ RAM AI',
+          line1: 'ส่งโจทย์การบ้านหรือแนบรูปโจทย์มาได้เลยครับ',
+          line2: 'ผมจะช่วยอธิบายวิธีคิดทีละขั้นตอน'
+        };
+    }
+
+    // Types the welcome greeting into #welcome, moving a blinking cursor
+    // along as it goes (title, then line 1, then line 2), like RAM is
+    // typing the greeting live.
+    function animateWelcomeTyping() {
+      const welcomeEl = document.getElementById('welcome');
+      if (!welcomeEl) return;
+      const lines = getWelcomeLines();
+      const titleEl = welcomeEl.querySelector('[data-line="title"]');
+      const line1El = welcomeEl.querySelector('[data-line="line1"]');
+      const line2El = welcomeEl.querySelector('[data-line="line2"]');
+      if (!titleEl || !line1El || !line2El) return;
+
+      const cursor = document.createElement('span');
+      cursor.className = 'typing-cursor';
+
+      const targets = [
+        { el: titleEl, text: lines.title, speed: 45 },
+        { el: line1El, text: lines.line1, speed: 16 },
+        { el: line2El, text: lines.line2, speed: 16 }
+      ];
+
+      let ti = 0;
+      function typeNext() {
+        if (!document.body.contains(welcomeEl)) { cursor.remove(); return; }
+        if (ti >= targets.length) { cursor.remove(); return; }
+        const { el, text, speed } = targets[ti];
+        el.insertAdjacentElement('afterend', cursor);
+        let ci = 0;
+        function step() {
+          if (!document.body.contains(welcomeEl)) { cursor.remove(); return; }
+          if (ci <= text.length) {
+            el.textContent = text.slice(0, ci);
+            ci++;
+            setTimeout(step, speed);
+          } else {
+            ti++;
+            setTimeout(typeNext, 200);
+          }
+        }
+        step();
+      }
+      typeNext();
     }
 
     function getActiveChat() {
@@ -2315,13 +2510,19 @@
       const activeChat = getActiveChat();
       if (!activeChat || activeChat.conversation.length === 0) {
         messages.innerHTML = getWelcomeHTML();
+        animateWelcomeTyping();
       } else {
         activeChat.conversation.forEach(msg => {
           const textParts = msg.parts.map(p => p.text).filter(Boolean).join('\n');
           const filePart = msg.parts.find(p => p.inlineData);
           let file = null;
           if (filePart) {
-            file = { url: `data:${filePart.inlineData.mimeType};base64,${filePart.inlineData.data}` };
+            const mimeType = filePart.inlineData.mimeType;
+            file = {
+              url: `data:${mimeType};base64,${filePart.inlineData.data}`,
+              mimeType,
+              name: mimeType === 'application/pdf' ? 'ไฟล์ PDF ที่แนบ' : undefined
+            };
           }
           add(textParts, msg.role === 'model' ? 'bot' : 'user', file, false);
         });
@@ -2588,10 +2789,12 @@
 
     function attach(file) {
       if (!file) return;
-      const isText = !file.type.startsWith('image/');
+      const isImage = file.type.startsWith('image/');
+      const isPdf = file.type === 'application/pdf';
+      const isText = !isImage && !isPdf;
 
       if (isText && appState.currentAppMode !== 'code') {
-        return alert('โหมดปกติรองรับเฉพาะไฟล์รูปภาพครับ หากต้องการอัปโหลดโค้ด กรุณาเลือกโหมด RAM CODE');
+        return alert('โหมดปกติรองรับเฉพาะไฟล์รูปภาพและ PDF ครับ หากต้องการอัปโหลดไฟล์โค้ด กรุณาเลือกโหมด RAM CODE');
       }
 
       const reader = new FileReader();
@@ -2604,6 +2807,7 @@
             isText: true
           };
           previewImage.style.display = 'none';
+          previewFileIcon.style.display = 'none';
           fileName.textContent = file.name;
           preview.classList.add('show');
         };
@@ -2617,8 +2821,14 @@
             url: reader.result,
             isText: false
           };
-          previewImage.style.display = 'block';
-          previewImage.src = attachment.url;
+          if (isImage) {
+            previewImage.style.display = 'block';
+            previewImage.src = attachment.url;
+            previewFileIcon.style.display = 'none';
+          } else {
+            previewImage.style.display = 'none';
+            previewFileIcon.style.display = 'block';
+          }
           fileName.textContent = file.name;
           preview.classList.add('show');
         };
@@ -2632,6 +2842,65 @@
       imageInput.value = '';
       preview.classList.remove('show');
     };
+
+    // ===== Drag & drop attachment support =====
+    (function setupDragAndDrop() {
+      const dropOverlay = document.getElementById('dropOverlay');
+      let dragCounter = 0;
+
+      function hasFiles(e) {
+        return e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files');
+      }
+
+      window.addEventListener('dragenter', (e) => {
+        if (!hasFiles(e)) return;
+        e.preventDefault();
+        dragCounter++;
+        dropOverlay.classList.add('show');
+      });
+
+      window.addEventListener('dragover', (e) => {
+        if (!hasFiles(e)) return;
+        e.preventDefault();
+      });
+
+      window.addEventListener('dragleave', (e) => {
+        if (!hasFiles(e)) return;
+        dragCounter = Math.max(0, dragCounter - 1);
+        if (dragCounter === 0) dropOverlay.classList.remove('show');
+      });
+
+      window.addEventListener('drop', (e) => {
+        if (!hasFiles(e)) return;
+        e.preventDefault();
+        dragCounter = 0;
+        dropOverlay.classList.remove('show');
+        const file = e.dataTransfer.files && e.dataTransfer.files[0];
+        if (file) attach(file);
+      });
+    })();
+
+    // ===== Paste (Ctrl+V) attachment support =====
+    document.addEventListener('paste', (e) => {
+      // Don't hijack pasting plain text into the prompt box.
+      const items = e.clipboardData && e.clipboardData.items;
+      if (!items) return;
+      let file = null;
+      for (const item of items) {
+        if (item.kind === 'file') {
+          const f = item.getAsFile();
+          if (f && (f.type.startsWith('image/') || f.type === 'application/pdf')) {
+            file = f;
+            break;
+          }
+        }
+      }
+      if (file) {
+        e.preventDefault();
+        attach(file);
+        prompt.focus();
+      }
+    });
 
     const weatherQuestion = text => /(สภาพอากาศ|อากาศวันนี้|อากาศเป็น|ฝนตก|อุณหภูมิวันนี้|พยากรณ์อากาศ|weather|forecast)/i.test(text);
 
@@ -2715,11 +2984,25 @@
       const elementsToAppend = [];
 
       if (file && !file.isText) {
-        const img = document.createElement('img');
-        img.className = 'attachment';
-        img.src = file.url || (file.inlineData ? `data:${file.inlineData.mimeType};base64,${file.inlineData.data}` : '');
-        img.alt = 'รูปโจทย์ที่แนบ';
-        elementsToAppend.push(img);
+        const mimeType = file.mimeType || (file.inlineData && file.inlineData.mimeType) || '';
+        if (mimeType.startsWith('image/') || !mimeType) {
+          const img = document.createElement('img');
+          img.className = 'attachment';
+          img.src = file.url || (file.inlineData ? `data:${file.inlineData.mimeType};base64,${file.inlineData.data}` : '');
+          img.alt = 'รูปโจทย์ที่แนบ';
+          elementsToAppend.push(img);
+        } else {
+          const chip = document.createElement('div');
+          chip.className = 'attachment-file';
+          chip.innerHTML = `
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+            </svg>
+            <span>${file.name || 'ไฟล์ PDF ที่แนบ'}</span>
+          `;
+          elementsToAppend.push(chip);
+        }
       }
 
       if (text) {
@@ -2989,7 +3272,8 @@
       let displayMsg = text;
       if (file && file.isText) displayMsg = `[แนบไฟล์โค้ด: ${file.name}]\n` + text;
 
-      add(displayMsg || 'ช่วยดูรูปโจทย์นี้ให้หน่อยครับ', 'user', (file && !file.isText) ? file : null, false);
+      const defaultAttachMsg = (file && file.mimeType === 'application/pdf') ? 'ช่วยดูไฟล์ PDF นี้ให้หน่อยครับ' : 'ช่วยดูรูปโจทย์นี้ให้หน่อยครับ';
+      add(displayMsg || defaultAttachMsg, 'user', (file && !file.isText) ? file : null, false);
 
       prompt.value = '';
       prompt.style.height = '48px';
@@ -3578,14 +3862,59 @@
         const menuToOpen = currentAppMode === 'code' ? codeDropdownMenu : aiDropdownMenu;
         const otherMenu = currentAppMode === 'code' ? aiDropdownMenu : codeDropdownMenu;
         otherMenu?.classList.remove('show');
-        menuToOpen?.classList.toggle('show');
+        const isOpen = menuToOpen?.classList.toggle('show');
+        customModelSelectBtn.classList.toggle('open', !!isOpen);
       };
 
       document.addEventListener('click', () => {
         codeDropdownMenu?.classList.remove('show');
         aiDropdownMenu?.classList.remove('show');
+        customModelSelectBtn.classList.remove('open');
       });
     }
+
+    // ===== Move the model selector into the header on mobile =====
+    // On phones there isn't room for both the status badge ("RAM CODE/AI
+    // ขับเคลื่อนโดย Gemini") and the model selector, so on mobile the model
+    // selector button takes the status badge's place in the header. On
+    // desktop it stays in the composer next to the input box.
+    (function setupResponsiveModelSelector() {
+      const MOBILE_BREAKPOINT = 768;
+      const modelSelectorWrap = document.getElementById('modelSelectorWrap');
+      const modelSelectorAnchor = document.getElementById('modelSelectorAnchor');
+      const headerModelSlot = document.getElementById('headerModelSlot');
+      if (!modelSelectorWrap || !modelSelectorAnchor || !headerModelSlot) return;
+
+      function closeModelDropdowns() {
+        document.getElementById('modelDropdownMenu')?.classList.remove('show');
+        document.getElementById('modelDropdownMenuAI')?.classList.remove('show');
+        document.getElementById('modelSelectBtn')?.classList.remove('open');
+      }
+
+      function positionModelSelector() {
+        const isMobile = window.innerWidth <= MOBILE_BREAKPOINT;
+        closeModelDropdowns();
+        if (isMobile) {
+          if (modelSelectorWrap.parentElement !== headerModelSlot) {
+            headerModelSlot.appendChild(modelSelectorWrap);
+          }
+          modelSelectorWrap.classList.add('in-header');
+        } else {
+          if (modelSelectorWrap.parentElement !== modelSelectorAnchor.parentElement) {
+            modelSelectorAnchor.parentElement.insertBefore(modelSelectorWrap, modelSelectorAnchor);
+          }
+          modelSelectorWrap.classList.remove('in-header');
+        }
+      }
+
+      positionModelSelector();
+
+      let resizeTimer = null;
+      window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(positionModelSelector, 150);
+      });
+    })();
   </script>
 </body>
 
