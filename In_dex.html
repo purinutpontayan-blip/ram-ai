@@ -825,6 +825,13 @@
       background: #f1f5f9;
       border: 1px solid var(--line);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .attachment-file:hover {
+      background: #e2e8f0;
+      transform: scale(1.02);
     }
 
     .attachment-file svg {
@@ -1966,9 +1973,7 @@
             <input id="imageInput" type="file" accept="image/*,application/pdf" hidden />
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-              <circle cx="8.5" cy="8.5" r="1.5"></circle>
-              <polyline points="21 15 16 10 5 21"></polyline>
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
             </svg>
           </label>
           <textarea id="prompt" placeholder="พิมพ์โจทย์หรือคำถามของคุณ..." aria-label="ข้อความ" rows="1"></textarea>
@@ -2579,13 +2584,13 @@
         brandLogo.classList.toggle('code-pro-mode', hasActiveProLogo('codePro'));
         brandLogo.classList.remove('ai-pro-mode');
         document.querySelector('.status').innerHTML = '<i class="dot"></i> RAM CODE ขับเคลื่อนโดย Gemini';
-        document.getElementById('imageInput').accept = "image/*,.txt,.js,.html,.css,.py,.cpp,.java,.cs";
+        document.getElementById('imageInput').accept = "image/*,application/pdf,.txt,.js,.html,.css,.py,.cpp,.java,.cs";
         if (aiMenu) aiMenu.classList.remove('show');
       } else {
         brandLogo.classList.remove('code-mode', 'code-pro-mode');
         brandLogo.classList.toggle('ai-pro-mode', hasActiveProLogo('aiPro'));
         document.querySelector('.status').innerHTML = '<i class="dot"></i> RAM AI ขับเคลื่อนโดย Gemini';
-        document.getElementById('imageInput').accept = "image/*";
+        document.getElementById('imageInput').accept = "image/*,application/pdf";
         if (codeMenu) codeMenu.classList.remove('show');
       }
       modelWrap.classList.add('show');
@@ -2975,6 +2980,33 @@
       return data.text;
     }
 
+    // Opens a non-image attachment (e.g. PDF) in a new tab, showing the full
+    // file rather than the small chip preview. Converts the base64 payload to
+    // a Blob URL first since Chrome blocks top-level navigation to data: URLs.
+    function openAttachmentInNewTab(file, mimeTypeHint) {
+      const mimeType = mimeTypeHint || file.mimeType || (file.inlineData && file.inlineData.mimeType) || 'application/octet-stream';
+      let base64 = file.data || (file.inlineData && file.inlineData.data);
+      if (!base64 && file.url && file.url.startsWith('data:')) {
+        base64 = file.url.split(',')[1];
+      }
+      if (!base64) {
+        if (file.url) window.open(file.url, '_blank');
+        return;
+      }
+      try {
+        const byteChars = atob(base64);
+        const byteNumbers = new Array(byteChars.length);
+        for (let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: mimeType });
+        const blobUrl = URL.createObjectURL(blob);
+        window.open(blobUrl, '_blank');
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+      } catch (e) {
+        if (file.url) window.open(file.url, '_blank');
+      }
+    }
+
     function add(text, role, file, save = true, animate = false) {
       const el = document.createElement('article');
       el.className = `message ${role}`;
@@ -2994,6 +3026,7 @@
         } else {
           const chip = document.createElement('div');
           chip.className = 'attachment-file';
+          chip.title = 'คลิกเพื่อดูไฟล์ฉบับเต็ม';
           chip.innerHTML = `
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -3001,6 +3034,7 @@
             </svg>
             <span>${file.name || 'ไฟล์ PDF ที่แนบ'}</span>
           `;
+          chip.onclick = () => openAttachmentInNewTab(file, mimeType);
           elementsToAppend.push(chip);
         }
       }
