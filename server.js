@@ -192,7 +192,15 @@ const FALLBACK_MODEL = 'gemini-3.5-flash-lite';
 
 // Model used for the realtime voice "LIVE" mode (Gemini Live API, bidi streaming).
 const LIVE_MODEL = process.env.GEMINI_LIVE_MODEL || 'models/gemini-3.1-flash-live-preview';
-const LIVE_SYSTEM_INSTRUCTION = 'You are ราม AI, a Thai assistant talking with the student out loud through a live voice+video call. You can also see a live camera feed from the student\'s device (e.g.  a whiteboard, or an object they are showing you) — use what you see to inform your answer when it is relevant, and naturally mention what you notice when it helps. Speak polite, natural, conversational Thai ending with ครับ. Keep replies short and spoken-style (not written-style) since this is a live conversation — explain step by step but do not read out long written text, formatting, or symbols. Never address the user as "น้อง" or any kinship/age term; speak to them directly and neutrally. Do not refer to yourself as "พี่", "ผม", or "ฉัน".';
+const LIVE_SYSTEM_INSTRUCTION = 'You are ราม AI, a Thai assistant talking with the student out loud through a live voice+video call. You can also see a live camera feed from the student\'s device (e.g.  a whiteboard, or an object they are showing you) — use what you see to inform your answer when it is relevant, and naturally mention what you notice when it helps. Speak polite, natural, conversational Thai ending with ครับ. Keep replies short and spoken-style (not written-style) since this is a live conversation — explain step by step but do not read out long written text, formatting, or symbols. Never address the user as "น้อง" or any kinship/age term; speak to them directly and neutrally. Do not refer to yourself as "พี่", "ผม", or "ฉัน". When the student clearly signals the conversation is over — thanking you and saying goodbye (e.g. "ขอบคุณครับ/ค่ะ", "แค่นี้ก่อนนะ", "ลาก่อน", "พอแล้วครับ"), or otherwise clearly indicating they are done — respond with one short, warm closing line that thanks them and says goodbye ending in "สวัสดีครับ", and then immediately call the end_call function. Do not call end_call in the middle of an ongoing topic or if the student is still asking something — only once the conversation has genuinely concluded.';
+
+const LIVE_TOOLS = [{
+  functionDeclarations: [{
+    name: 'end_call',
+    description: 'เรียกใช้ทันทีหลังจากพูดขอบคุณและกล่าวคำอำลา (ลงท้ายด้วย "สวัสดีครับ") เมื่อผู้ใช้ส่งสัญญาณชัดเจนว่าจบบทสนทนาแล้ว เช่น ขอบคุณและลาก่อน เพื่อวางสายการโทรอัตโนมัติ',
+    parameters: { type: 'OBJECT', properties: {} }
+  }]
+}];
 
 async function callGemini(apiKey, body, overrideModel = null) {
   const url = model => `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
@@ -481,7 +489,12 @@ liveWss.on('connection', clientWs => {
       setup: {
         model: LIVE_MODEL,
         generationConfig: { responseModalities: ['AUDIO'] },
-        systemInstruction: { parts: [{ text: LIVE_SYSTEM_INSTRUCTION }] }
+        systemInstruction: { parts: [{ text: LIVE_SYSTEM_INSTRUCTION }] },
+        tools: LIVE_TOOLS,
+        // Ask Gemini to also transcribe both sides of the call to text so the
+        // client can show live captions on top of the audio-only reply.
+        outputAudioTranscription: {},
+        inputAudioTranscription: {}
       }
     }));
   });
@@ -503,11 +516,42 @@ liveWss.on('connection', clientWs => {
         try { clientWs.send(JSON.stringify({ type: 'audio', data: part.inlineData.data })); } catch {}
       }
     }
+
+    // Caption text — streamed separately from the audio, so it arrives as
+    // its own small chunks that the client appends to the current line.
+    const outText = msg.serverContent?.outputTranscription?.text;
+    if (outText) {
+      try { clientWs.send(JSON.stringify({ type: 'caption', role: 'model', text: outText })); } catch {}
+    }
+    const inText = msg.serverContent?.inputTranscription?.text;
+    if (inText) {
+      try { clientWs.send(JSON.stringify({ type: 'caption', role: 'user', text: inText })); } catch {}
+    }
+
     if (msg.serverContent?.interrupted) {
       try { clientWs.send(JSON.stringify({ type: 'interrupted' })); } catch {}
     }
     if (msg.serverContent?.turnComplete) {
       try { clientWs.send(JSON.stringify({ type: 'turnComplete' })); } catch {}
+    }
+
+    // Model asked to end the call (it should only do this right after
+    // speaking a thank-you/goodbye line, per LIVE_SYSTEM_INSTRUCTION). We
+    // must send a toolResponse back or the session is left hanging, then
+    // tell the client to hang up once the goodbye audio finishes playing.
+    const functionCalls = msg.toolCall?.functionCalls;
+    if (functionCalls?.length) {
+      const endCallRequested = functionCalls.some(c => c.name === 'end_call');
+      try {
+        upstream.send(JSON.stringify({
+          toolResponse: {
+            functionResponses: functionCalls.map(c => ({ id: c.id, name: c.name, response: { result: 'ok' } }))
+          }
+        }));
+      } catch {}
+      if (endCallRequested) {
+        try { clientWs.send(JSON.stringify({ type: 'endCall' })); } catch {}
+      }
     }
 
     // Gemini sends this a little before it force-closes the session because
