@@ -410,6 +410,117 @@
       color: #fff;
     }
 
+    /* LIVE voice-call overlay */
+    .live-modal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      place-items: center;
+      padding: 20px;
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(10px);
+      z-index: 120;
+    }
+
+    .live-modal.open {
+      display: grid;
+      animation: slideUp 0.2s ease-out;
+    }
+
+    .live-dialog {
+      position: relative;
+      width: min(360px, 100%);
+      padding: 48px 28px 36px;
+      border-radius: 32px;
+      background: #fff;
+      box-shadow: 0 25px 75px rgba(0, 0, 0, 0.3);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      text-align: center;
+    }
+
+    .live-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 36px;
+      height: 36px;
+      border: 0;
+      border-radius: 50%;
+      background: #f1f5f9;
+      color: var(--muted);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      font-size: 20px;
+      line-height: 1;
+      transition: var(--transition);
+    }
+
+    .live-close:hover {
+      background: #e2e8f0;
+      color: var(--ink);
+    }
+
+    .live-status {
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--muted);
+      min-height: 20px;
+    }
+
+    .live-orb {
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      border: 0;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle at 35% 30%, #fdf4f8, #ecfdf5 70%);
+      box-shadow: 0 10px 30px rgba(16, 185, 129, 0.15), inset 0 0 0 1px var(--line);
+      transition: var(--transition);
+    }
+
+    .live-orb:active {
+      transform: scale(0.96);
+    }
+
+    .live-orb svg {
+      overflow: visible;
+    }
+
+    .live-orb rect {
+      fill: url(#liveIconGrad);
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+
+    /* Idle: gentle static bars. Speaking: each bar bounces like a waveform. */
+    .live-orb.speaking rect.bar1 { animation: liveBar 0.9s ease-in-out infinite; }
+    .live-orb.speaking rect.bar2 { animation: liveBar 0.9s ease-in-out infinite 0.15s; }
+    .live-orb.speaking rect.bar3 { animation: liveBar 0.9s ease-in-out infinite 0.3s; }
+
+    @keyframes liveBar {
+
+      0%,
+      100% {
+        transform: scaleY(0.6);
+      }
+
+      50% {
+        transform: scaleY(1.35);
+      }
+    }
+
+    .live-hint {
+      margin: 0;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
     /* Delete confirmation modal */
     .del-modal {
       position: fixed;
@@ -1078,7 +1189,8 @@
 
     .icon-btn,
     .send,
-    .stop-btn {
+    .stop-btn,
+    .live-btn {
       flex: 0 0 48px;
       height: 48px;
       border: 0;
@@ -1117,6 +1229,30 @@
       background: #cbd5e1;
       cursor: not-allowed;
       transform: none;
+    }
+
+    /* Composer LIVE-mode toggle button — shown instead of the send button
+       whenever the composer is empty (no text, no attachment). */
+    .live-btn {
+      display: none;
+      background: #f1f5f9;
+    }
+
+    .live-btn.show {
+      display: grid;
+    }
+
+    .live-btn:hover {
+      background: #e2e8f0;
+      transform: scale(1.05);
+    }
+
+    .live-btn:active {
+      transform: scale(0.95);
+    }
+
+    .live-btn svg rect {
+      fill: url(#liveIconGrad);
     }
 
     .stop-btn {
@@ -2130,6 +2266,24 @@
             </div>
             <span id="modelSelectorAnchor" style="display:none;"></span>
 
+            <!-- Shared gradient used by the LIVE icon in the composer button and in the live-call orb -->
+            <svg width="0" height="0" style="position:absolute">
+              <defs>
+                <linearGradient id="liveIconGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" style="stop-color:var(--rose)"></stop>
+                  <stop offset="100%" style="stop-color:var(--green)"></stop>
+                </linearGradient>
+              </defs>
+            </svg>
+
+            <button class="live-btn" id="liveBtn" type="button" aria-label="โหมด LIVE"
+              title="โหมด LIVE — สนทนาด้วยเสียงกับ RAM AI">
+              <svg width="20" height="20" viewBox="0 0 24 24">
+                <rect x="2" y="8" width="4" height="8" rx="2"></rect>
+                <rect x="10" y="3" width="4" height="18" rx="2"></rect>
+                <rect x="18" y="9" width="4" height="6" rx="2"></rect>
+              </svg>
+            </button>
             <button class="send" id="sendBtn" aria-label="ส่งข้อความ" type="submit">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                 stroke-linecap="round" stroke-linejoin="round">
@@ -2147,6 +2301,22 @@
         <p class="hint">© RAM AI 2026</p>
       </div>
     </main>
+  </div>
+
+  <!-- LIVE voice-call overlay -->
+  <div class="live-modal" id="liveModal">
+    <div class="live-dialog">
+      <button class="live-close" id="liveCloseBtn" type="button" aria-label="ปิดโหมด LIVE">×</button>
+      <div class="live-status" id="liveStatus">กำลังเชื่อมต่อ...</div>
+      <button class="live-orb" id="liveOrb" type="button" title="แตะเพื่อหยุด AI ขณะพูด">
+        <svg width="56" height="56" viewBox="0 0 24 24">
+          <rect class="bar bar1" x="2" y="8" width="4" height="8" rx="2"></rect>
+          <rect class="bar bar2" x="10" y="3" width="4" height="18" rx="2"></rect>
+          <rect class="bar bar3" x="18" y="9" width="4" height="6" rx="2"></rect>
+        </svg>
+      </button>
+      <p class="live-hint" id="liveHint">พูดได้เลยครับ — หาก AI พูดอยู่ แตะไอคอนเพื่อหยุด</p>
+    </div>
   </div>
 
   <!-- Delete Chat Confirmation Modal -->
@@ -2349,11 +2519,26 @@
     let messageQueue = [];
     const stopBtn = document.getElementById('stopBtn');
     const sendBtn = document.getElementById('sendBtn');
+    const liveBtn = document.getElementById('liveBtn');
+
+    // Shows the send button while there's text/attachments to send, and the
+    // LIVE (voice call) button when the composer is empty. Neither shows
+    // while a reply is being generated — the stop button takes that slot.
+    function updateComposerButtons() {
+      const hasContent = prompt.value.trim().length > 0 || attachments.length > 0;
+      if (isGenerating) {
+        sendBtn.style.display = 'none';
+        liveBtn.classList.remove('show');
+        return;
+      }
+      sendBtn.style.display = hasContent ? 'grid' : 'none';
+      liveBtn.classList.toggle('show', !hasContent);
+    }
 
     function setGenerating(state) {
       isGenerating = state;
-      sendBtn.style.display = state ? 'none' : 'grid';
       stopBtn.classList.toggle('show', state);
+      updateComposerButtons();
     }
 
     function processQueue() {
@@ -2881,6 +3066,7 @@
     // Images are shown as plain thumbnails (no filename) — up to MAX_IMAGES.
     // A PDF or code file is shown with its icon and filename, one at a time.
     function renderPreview() {
+      updateComposerButtons();
       if (!attachments.length) {
         preview.classList.remove('show');
         previewThumbs.innerHTML = '';
@@ -3431,6 +3617,7 @@
         add(formatQuotaResetText(s.resetAt), 'bot', null, false, true);
         prompt.value = '';
         prompt.style.height = '48px';
+        updateComposerButtons();
         return;
       }
 
@@ -3439,6 +3626,7 @@
         messageQueue.push(value);
         prompt.value = '';
         prompt.style.height = '48px';
+        updateComposerButtons();
         return;
       }
 
@@ -3627,6 +3815,160 @@
       }
     };
 
+    // ===== LIVE MODE — realtime voice call with RAM AI (Gemini 3 Flash Live) =====
+    (function setupLiveMode() {
+      const liveModal = document.getElementById('liveModal');
+      const liveOrb = document.getElementById('liveOrb');
+      const liveStatus = document.getElementById('liveStatus');
+      const liveHint = document.getElementById('liveHint');
+      const liveCloseBtn = document.getElementById('liveCloseBtn');
+
+      let liveWs = null;
+      let liveMicStream = null;
+      let liveAudioCtx = null;   // 16kHz context used to capture + encode mic input
+      let liveMicSource = null;
+      let liveProcessor = null;
+      let livePlayCtx = null;    // 24kHz context used to play back model audio
+      let livePlayTime = 0;
+      let liveIsSpeaking = false;
+
+      function liveSetSpeaking(speaking) {
+        liveIsSpeaking = speaking;
+        liveOrb.classList.toggle('speaking', speaking);
+        liveStatus.textContent = speaking ? 'AI กำลังพูด...' : 'กำลังฟัง...';
+        liveHint.textContent = speaking ? 'แตะไอคอนเพื่อหยุด AI' : 'พูดได้เลยครับ';
+      }
+
+      function floatTo16BitPCM(float32Array) {
+        const buffer = new ArrayBuffer(float32Array.length * 2);
+        const view = new DataView(buffer);
+        for (let i = 0; i < float32Array.length; i++) {
+          const s = Math.max(-1, Math.min(1, float32Array[i]));
+          view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+        }
+        return buffer;
+      }
+
+      function base64ToInt16(base64) {
+        const raw = atob(base64);
+        const buf = new ArrayBuffer(raw.length);
+        const bytes = new Uint8Array(buf);
+        for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+        return new Int16Array(buf);
+      }
+
+      function ensurePlayCtx() {
+        if (!livePlayCtx) {
+          livePlayCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+          livePlayTime = livePlayCtx.currentTime;
+        }
+        return livePlayCtx;
+      }
+
+      function playLiveAudioChunk(base64Data) {
+        const ctx = ensurePlayCtx();
+        const int16 = base64ToInt16(base64Data);
+        const float32 = new Float32Array(int16.length);
+        for (let i = 0; i < int16.length; i++) float32[i] = int16[i] / 32768;
+
+        const audioBuffer = ctx.createBuffer(1, float32.length, 24000);
+        audioBuffer.copyToChannel(float32, 0);
+        const src = ctx.createBufferSource();
+        src.buffer = audioBuffer;
+        src.connect(ctx.destination);
+        const startAt = Math.max(ctx.currentTime, livePlayTime);
+        src.start(startAt);
+        livePlayTime = startAt + audioBuffer.duration;
+      }
+
+      function stopLivePlayback() {
+        if (livePlayCtx) {
+          try { livePlayCtx.close(); } catch {}
+          livePlayCtx = null;
+          livePlayTime = 0;
+        }
+      }
+
+      function startMicStreaming() {
+        liveAudioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+        liveMicSource = liveAudioCtx.createMediaStreamSource(liveMicStream);
+        // ScriptProcessorNode is deprecated but needs no extra worklet file
+        // and is still broadly supported — good enough for streaming mic PCM.
+        liveProcessor = liveAudioCtx.createScriptProcessor(4096, 1, 1);
+        liveMicSource.connect(liveProcessor);
+        liveProcessor.connect(liveAudioCtx.destination);
+        liveProcessor.onaudioprocess = e => {
+          if (!liveWs || liveWs.readyState !== WebSocket.OPEN) return;
+          const input = e.inputBuffer.getChannelData(0);
+          liveWs.send(floatTo16BitPCM(input));
+        };
+      }
+
+      function handleLiveMessage(ev) {
+        if (typeof ev.data !== 'string') return;
+        let msg;
+        try { msg = JSON.parse(ev.data); } catch { return; }
+        if (msg.type === 'ready') {
+          liveSetSpeaking(false);
+        } else if (msg.type === 'audio') {
+          playLiveAudioChunk(msg.data);
+          liveSetSpeaking(true);
+        } else if (msg.type === 'turnComplete') {
+          liveSetSpeaking(false);
+        } else if (msg.type === 'interrupted') {
+          stopLivePlayback();
+          liveSetSpeaking(false);
+        } else if (msg.type === 'error') {
+          liveStatus.textContent = msg.message || 'เกิดข้อผิดพลาด';
+        }
+      }
+
+      async function openLiveMode() {
+        liveModal.classList.add('open');
+        liveStatus.textContent = 'กำลังเชื่อมต่อ...';
+        liveHint.textContent = 'กำลังขอสิทธิ์ใช้ไมโครโฟน...';
+
+        try {
+          liveMicStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch (e) {
+          liveStatus.textContent = 'ไม่สามารถเข้าถึงไมโครโฟนได้';
+          liveHint.textContent = 'กรุณาอนุญาตการใช้ไมโครโฟนแล้วลองใหม่ครับ';
+          return;
+        }
+
+        const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+        liveWs = new WebSocket(`${proto}://${location.host}/api/live`);
+        liveWs.onopen = () => { startMicStreaming(); };
+        liveWs.onmessage = handleLiveMessage;
+        liveWs.onerror = () => { liveStatus.textContent = 'เกิดข้อผิดพลาดในการเชื่อมต่อ'; };
+        liveWs.onclose = () => { liveStatus.textContent = 'การเชื่อมต่อสิ้นสุดแล้ว'; };
+      }
+
+      function closeLiveMode() {
+        liveModal.classList.remove('open');
+        if (liveProcessor) { try { liveProcessor.disconnect(); } catch {} liveProcessor.onaudioprocess = null; liveProcessor = null; }
+        if (liveMicSource) { try { liveMicSource.disconnect(); } catch {} liveMicSource = null; }
+        if (liveAudioCtx) { try { liveAudioCtx.close(); } catch {} liveAudioCtx = null; }
+        if (liveMicStream) { liveMicStream.getTracks().forEach(t => t.stop()); liveMicStream = null; }
+        stopLivePlayback();
+        if (liveWs) { try { liveWs.close(); } catch {} liveWs = null; }
+        liveSetSpeaking(false);
+      }
+
+      liveBtn.onclick = openLiveMode;
+      liveCloseBtn.onclick = closeLiveMode;
+      liveOrb.onclick = () => {
+        // Tap while the AI is talking = barge in and stop it, same idea as
+        // the stop button in text mode.
+        if (liveIsSpeaking) {
+          stopLivePlayback();
+          liveSetSpeaking(false);
+        }
+      };
+    })();
+
+    updateComposerButtons();
+
     document.querySelector('#newChat').onclick = () => {
       appState.activeChatId = null;
       saveState();
@@ -3651,6 +3993,7 @@
     prompt.oninput = () => {
       prompt.style.height = '48px';
       prompt.style.height = Math.min(prompt.scrollHeight, 200) + 'px';
+      updateComposerButtons();
     };
 
     const modal = document.querySelector('#modal');
