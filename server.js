@@ -446,7 +446,7 @@ http.createServer(async (req, res) => {
       }
       return send(res, response.status, { error: data.error?.message || 'Gemini API error' });
     }
-    const text = data.candidates?.[0]?.content?.parts?.map(part => part.text || '').join('') || 'ไม่พบคำตอบจาก Gemini';
+    const text = data.candidates?.[0]?.content?.parts?.map(part => part.text || '').join('') || 'เกิดข้อผิดพลาดโปรดลองอีกครั้ง';
     return send(res, 200, { text });
   } catch (error) { return send(res, 500, { error: error.message }); }
 }).listen(port, () => console.log(`RAM AI is running at http://localhost:${port}`));
