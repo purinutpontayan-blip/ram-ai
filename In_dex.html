@@ -694,6 +694,14 @@
 
     .live-captions.show { display: block; }
 
+    .live-captions .caption-line {
+      text-align: left;
+    }
+
+    .live-captions .caption-line + .caption-line {
+      margin-top: 4px;
+    }
+
     .live-captions .caption-role {
       color: var(--pink);
       font-weight: 600;
@@ -4197,11 +4205,15 @@
       let liveEndCallTimer = null;
 
       // Captions: toggled on/off by the user, persisted like the other live
-      // preferences. Text streams in from the server as transcription chunks
-      // and is buffered per speaker turn (AI reply vs. what the user said).
+      // preferences. Text streams in from the server as transcription chunks.
+      // User and AI text are buffered SEPARATELY (not one shared buffer) so
+      // that captions for one speaker don't get wiped out the instant the
+      // other speaker's transcription starts arriving — which, in practice,
+      // happens within milliseconds of each other since Gemini sends the
+      // user's finalized input transcription right as it starts streaming
+      // the model's reply.
       let liveCaptionsEnabled = localStorage.getItem('ram_live_captions') === '1';
-      let liveCaptionRole = null;   // 'model' | 'user' | null
-      let liveCaptionBuffer = '';
+      let liveCaptionLines = { user: '', model: '' };
 
       // Camera / video-frame streaming state
       let liveCamStream = null;
@@ -4399,32 +4411,43 @@
       }
 
       // ===== Captions =====
+      // Both speakers get their own line, shown at the same time (user line
+      // on top, AI line below) so neither one overwrites the other while
+      // Gemini is streaming both in quick succession.
       function renderCaptions() {
         liveCaptions.textContent = '';
-        if (!liveCaptionBuffer) return;
-        const roleSpan = document.createElement('span');
-        roleSpan.className = 'caption-role';
-        roleSpan.textContent = liveCaptionRole === 'user' ? 'คุณ:' : 'AI:';
-        liveCaptions.appendChild(roleSpan);
-        liveCaptions.appendChild(document.createTextNode(liveCaptionBuffer));
+        const order = [
+          { role: 'user', label: 'คุณ:' },
+          { role: 'model', label: 'AI:' }
+        ];
+        let any = false;
+        order.forEach(({ role, label }) => {
+          const text = liveCaptionLines[role];
+          if (!text) return;
+          any = true;
+          const line = document.createElement('div');
+          line.className = 'caption-line';
+          const roleSpan = document.createElement('span');
+          roleSpan.className = 'caption-role';
+          roleSpan.textContent = label;
+          line.appendChild(roleSpan);
+          line.appendChild(document.createTextNode(text));
+          liveCaptions.appendChild(line);
+        });
+        if (!any) liveCaptions.textContent = '';
       }
 
       function clearCaptions() {
-        liveCaptionRole = null;
-        liveCaptionBuffer = '';
+        liveCaptionLines = { user: '', model: '' };
         renderCaptions();
       }
 
-      // Appends an incoming transcription chunk. A new speaker turn starts a
-      // fresh line; consecutive chunks from the same speaker keep building
-      // the same line, matching how the Live API streams transcript text.
+      // Appends an incoming transcription chunk to that speaker's own line.
+      // Consecutive chunks from the same speaker keep building the same
+      // line, matching how the Live API streams transcript text.
       function appendCaption(role, textChunk) {
         if (!liveCaptionsEnabled || !textChunk) return;
-        if (liveCaptionRole !== role) {
-          liveCaptionRole = role;
-          liveCaptionBuffer = '';
-        }
-        liveCaptionBuffer += textChunk;
+        liveCaptionLines[role] = (liveCaptionLines[role] || '') + textChunk;
         renderCaptions();
       }
 
