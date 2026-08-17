@@ -236,6 +236,178 @@
       overflow-x: auto;
     }
 
+    /* Compact in-chat chip that opens the code panel (replaces the old
+       inline-expanding code block, which used to overflow sideways inside
+       the chat bubble). */
+    .code-chip {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      margin: 12px 0;
+      padding: 12px 14px;
+      background: #0f172a;
+      border: 0;
+      border-radius: 12px;
+      color: #f8fafc;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 14px;
+      text-align: left;
+      transition: var(--transition);
+    }
+
+    .code-chip:hover {
+      background: #1e293b;
+    }
+
+    .code-chip svg {
+      flex-shrink: 0;
+      color: var(--green);
+    }
+
+    .code-chip-lang {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #94a3b8;
+    }
+
+    .code-chip-label {
+      flex: 1;
+      color: #cbd5e1;
+    }
+
+    .code-chip .chevron {
+      flex-shrink: 0;
+      color: #64748b;
+    }
+
+    /* Side panel that shows the full code, docked to the right of the
+       screen on desktop and fullscreen on mobile — like a code canvas. */
+    .code-panel-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.35);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+      z-index: 130;
+    }
+
+    .code-panel-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .code-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      height: 100vh;
+      width: min(680px, 46vw);
+      max-width: 100vw;
+      background: #0f172a;
+      color: #f8fafc;
+      display: flex;
+      flex-direction: column;
+      box-shadow: -20px 0 60px rgba(0, 0, 0, 0.35);
+      transform: translateX(100%);
+      transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 131;
+    }
+
+    .code-panel.open {
+      transform: translateX(0);
+    }
+
+    .code-panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 18px;
+      background: #1e293b;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      flex-shrink: 0;
+    }
+
+    .code-panel-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      font-size: 13px;
+      color: #94a3b8;
+    }
+
+    .code-panel-title span.lang {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 3px 9px;
+      border-radius: 6px;
+      color: #f8fafc;
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+
+    .code-panel-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .code-panel-actions button {
+      background: rgba(255, 255, 255, 0.08);
+      border: 0;
+      color: #fff;
+      padding: 7px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-family: inherit;
+      transition: var(--transition);
+    }
+
+    .code-panel-actions button:hover {
+      background: rgba(255, 255, 255, 0.18);
+    }
+
+    .code-panel-close {
+      width: 32px;
+      height: 32px;
+      padding: 0 !important;
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .code-panel-body {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+    }
+
+    .code-panel-body pre {
+      margin: 0;
+      padding: 20px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 13.5px;
+      line-height: 1.6;
+      white-space: pre;
+    }
+
+    @media (max-width: 768px) {
+      .code-panel {
+        width: 100vw;
+        max-width: 100vw;
+      }
+    }
+
     .code-followup {
       margin-top: 16px;
       padding-top: 16px;
@@ -2303,6 +2475,25 @@
     </main>
   </div>
 
+  <!-- Code panel — opened from a code chip in chat, docked right on desktop / fullscreen on mobile -->
+  <div class="code-panel-overlay" id="codePanelOverlay"></div>
+  <div class="code-panel" id="codePanel">
+    <div class="code-panel-header">
+      <div class="code-panel-title">
+        <span class="lang" id="codePanelLang">code</span>
+      </div>
+      <div class="code-panel-actions">
+        <button type="button" id="codePanelPreviewBtn" style="display:none;">Preview</button>
+        <button type="button" id="codePanelCopyBtn">Copy</button>
+        <button type="button" id="codePanelDownloadBtn">Download</button>
+        <button type="button" class="code-panel-close" id="codePanelCloseBtn" aria-label="ปิด">×</button>
+      </div>
+    </div>
+    <div class="code-panel-body">
+      <pre><code id="codePanelCode"></code></pre>
+    </div>
+  </div>
+
   <!-- LIVE voice-call overlay -->
   <div class="live-modal" id="liveModal">
     <div class="live-dialog">
@@ -3410,61 +3601,17 @@
 
               const isWebCode = lang.toLowerCase() === 'html' || lang.toLowerCase() === 'html/css/js' || lang.toLowerCase() === 'xml' || lang.toLowerCase() === 'svg';
 
-              codeContainer.innerHTML = `
-                 <div class="code-reveal-btn" style="padding: 12px; text-align: center; background: #0f172a; cursor: pointer; color: var(--green); font-weight: 600; font-size: 14px; transition: var(--transition);">
-                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: text-bottom; margin-right: 6px;"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
-                   คลิกเพื่อดูโค้ด (${lang})
-                 </div>
-                 <div class="code-content" style="display: none;">
-                   <div class="code-header">
-                     <span>${lang}</span>
-                     <div class="code-actions">
-                       ${isWebCode ? '<button class="preview-btn">Preview</button>' : ''}
-                       <button class="copy-btn">Copy</button>
-                       <button class="download-btn">Download</button>
-                     </div>
-                   </div>
-                   <pre><code class="language-${lang}">${code.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code></pre>
-                 </div>
-               `;
-
-              const revealBtn = codeContainer.querySelector('.code-reveal-btn');
-              revealBtn.onmouseover = () => revealBtn.style.background = '#1e293b';
-              revealBtn.onmouseout = () => revealBtn.style.background = '#0f172a';
-              revealBtn.onclick = function () {
-                this.style.display = 'none';
-                codeContainer.querySelector('.code-content').style.display = 'block';
-              };
-
-              codeContainer.querySelector('.copy-btn').onclick = () => {
-                navigator.clipboard.writeText(code);
-                codeContainer.querySelector('.copy-btn').textContent = 'Copied!';
-                setTimeout(() => codeContainer.querySelector('.copy-btn').textContent = 'Copy', 2000);
-              };
-
-              codeContainer.querySelector('.download-btn').onclick = () => {
-                const blob = new Blob([code], { type: 'text/plain' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                let ext = 'txt';
-                if (lang === 'html') ext = 'html';
-                if (lang === 'js' || lang === 'javascript') ext = 'js';
-                if (lang === 'css') ext = 'css';
-                if (lang === 'py' || lang === 'python') ext = 'py';
-                a.download = `code.${ext}`;
-                a.click();
-                URL.revokeObjectURL(url);
-              };
-
-              const previewBtn = codeContainer.querySelector('.preview-btn');
-              if (previewBtn) {
-                previewBtn.onclick = () => {
-                  const previewWin = window.open('', '_blank');
-                  previewWin.document.write(code);
-                  previewWin.document.close();
-                };
-              }
+              const chip = document.createElement('button');
+              chip.type = 'button';
+              chip.className = 'code-chip';
+              chip.innerHTML = `
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+                <span class="code-chip-lang">${lang}</span>
+                <span class="code-chip-label">คลิกเพื่อดูโค้ด</span>
+                <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+              `;
+              chip.onclick = () => openCodePanel(lang, code, isWebCode);
+              codeContainer.appendChild(chip);
 
               elementsToAppend.push(codeContainer);
               i++; // skip the next item because we consumed it (the code content)
@@ -3814,6 +3961,66 @@
         send(prompt.value);
       }
     };
+
+    // ===== Code panel — opened from a code chip in chat =====
+    (function setupCodePanel() {
+      const panel = document.getElementById('codePanel');
+      const overlay = document.getElementById('codePanelOverlay');
+      const langEl = document.getElementById('codePanelLang');
+      const codeEl = document.getElementById('codePanelCode');
+      const closeBtn = document.getElementById('codePanelCloseBtn');
+      const copyBtn = document.getElementById('codePanelCopyBtn');
+      const downloadBtn = document.getElementById('codePanelDownloadBtn');
+      const previewBtn = document.getElementById('codePanelPreviewBtn');
+      let currentCode = '';
+      let currentLang = 'code';
+
+      window.openCodePanel = (lang, code, isWebCode) => {
+        currentCode = code;
+        currentLang = lang || 'code';
+        langEl.textContent = currentLang;
+        codeEl.textContent = code;
+        previewBtn.style.display = isWebCode ? 'inline-block' : 'none';
+        panel.classList.add('open');
+        overlay.classList.add('open');
+      };
+
+      function closeCodePanel() {
+        panel.classList.remove('open');
+        overlay.classList.remove('open');
+      }
+
+      closeBtn.onclick = closeCodePanel;
+      overlay.onclick = closeCodePanel;
+
+      copyBtn.onclick = () => {
+        navigator.clipboard.writeText(currentCode);
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => copyBtn.textContent = 'Copy', 2000);
+      };
+
+      downloadBtn.onclick = () => {
+        const blob = new Blob([currentCode], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        let ext = 'txt';
+        const l = currentLang.toLowerCase();
+        if (l === 'html') ext = 'html';
+        if (l === 'js' || l === 'javascript') ext = 'js';
+        if (l === 'css') ext = 'css';
+        if (l === 'py' || l === 'python') ext = 'py';
+        a.download = `code.${ext}`;
+        a.click();
+        URL.revokeObjectURL(url);
+      };
+
+      previewBtn.onclick = () => {
+        const previewWin = window.open('', '_blank');
+        previewWin.document.write(currentCode);
+        previewWin.document.close();
+      };
+    })();
 
     // ===== LIVE MODE — realtime voice call with RAM AI (Gemini 3 Flash Live) =====
     (function setupLiveMode() {
