@@ -509,6 +509,15 @@ liveWss.on('connection', clientWs => {
     if (msg.serverContent?.turnComplete) {
       try { clientWs.send(JSON.stringify({ type: 'turnComplete' })); } catch {}
     }
+
+    // Gemini sends this a little before it force-closes the session because
+    // the max session duration was reached. Surface it so the UI can warn
+    // the user instead of just going dead with no explanation.
+    if (msg.goAway) {
+      const timeLeft = msg.goAway.timeLeft || '(unknown)';
+      console.log(`[live] upstream sent goAway, timeLeft=${timeLeft}`);
+      try { clientWs.send(JSON.stringify({ type: 'goAway', timeLeft })); } catch {}
+    }
   });
 
   upstream.on('error', e => {
@@ -516,8 +525,19 @@ liveWss.on('connection', clientWs => {
     try { clientWs.send(JSON.stringify({ type: 'error', message: 'การเชื่อมต่อกับ AI มีปัญหา' })); } catch {}
   });
 
-  upstream.on('close', () => {
-    if (!closedByClient) { try { clientWs.close(); } catch {} }
+  // ws gives us the close code + reason the server actually sent — log it
+  // so we can tell duration-limit / quota / auth closes apart in Render's
+  // logs, and forward a human-readable reason to the client instead of
+  // leaving them with a generic "connection ended" message.
+  upstream.on('close', (code, reasonBuf) => {
+    const reason = reasonBuf ? reasonBuf.toString() : '';
+    console.log(`[live] upstream closed: code=${code} reason=${JSON.stringify(reason)}`);
+    if (!closedByClient) {
+      try {
+        clientWs.send(JSON.stringify({ type: 'upstreamClosed', code, reason }));
+      } catch {}
+      try { clientWs.close(); } catch {}
+    }
   });
 
   // Binary frames from the client = raw 16-bit PCM mic audio (16kHz, mono).
