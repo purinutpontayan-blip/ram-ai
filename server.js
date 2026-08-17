@@ -3,6 +3,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { OAuth2Client } = require('google-auth-library');
+const WebSocket = require('ws');
+const { WebSocketServer } = require('ws');
 
 const root = __dirname;
 const port = Number(process.env.PORT || 10000);
@@ -188,6 +190,10 @@ function saveRedeemUsage(usage) {
 const PRIMARY_MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
 const FALLBACK_MODEL = 'gemini-3.5-flash-lite';
 
+// Model used for the realtime voice "LIVE" mode (Gemini Live API, bidi streaming).
+const LIVE_MODEL = process.env.GEMINI_LIVE_MODEL || 'models/gemini-3-flash-live';
+const LIVE_SYSTEM_INSTRUCTION = 'You are RAM AI, a Thai homework-learning assistant talking with the student out loud through a live voice call. Speak polite, natural, conversational Thai ending with ครับ. Keep replies short and spoken-style (not written-style) since this is a live conversation — explain step by step but do not read out long written text, formatting, or symbols. Never address the user as "น้อง" or any kinship/age term; speak to them directly and neutrally. Do not refer to yourself as "พี่", "ผม", or "ฉัน".';
+
 async function callGemini(apiKey, body, overrideModel = null) {
   const url = model => `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
   const opts = { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey }, body: JSON.stringify(body) };
@@ -215,7 +221,7 @@ const send = (res, status, body) => {
   });
   res.end(JSON.stringify(body));
 };
-http.createServer(async (req, res) => {
+const server = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') {
     res.writeHead(204, {
       'Access-Control-Allow-Origin': '*',
@@ -449,4 +455,95 @@ http.createServer(async (req, res) => {
     const text = data.candidates?.[0]?.content?.parts?.map(part => part.text || '').join('') || 'เกิดข้อผิดพลาดโปรดลองอีกครั้ง';
     return send(res, 200, { text });
   } catch (error) { return send(res, 500, { error: error.message }); }
-}).listen(port, () => console.log(`RAM AI is running at http://localhost:${port}`));
+});
+
+// ===== LIVE MODE (realtime voice) =====
+// Relays audio between the browser and Gemini's Live (BidiGenerateContent)
+// WebSocket API. The Gemini API key never reaches the browser — the client
+// only ever talks to our own /api/live socket, and we hold the upstream
+// connection to Google on the server.
+const liveWss = new WebSocketServer({ server, path: '/api/live' });
+
+liveWss.on('connection', clientWs => {
+  if (!process.env.GEMINI_API_KEY) {
+    try { clientWs.send(JSON.stringify({ type: 'error', message: 'ยังไม่ได้ตั้งค่า GEMINI_API_KEY' })); } catch {}
+    return clientWs.close();
+  }
+
+  const upstreamUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${process.env.GEMINI_API_KEY}`;
+  const upstream = new WebSocket(upstreamUrl);
+  let upstreamReady = false;
+  const pendingToUpstream = [];
+  let closedByClient = false;
+
+  upstream.on('open', () => {
+    upstream.send(JSON.stringify({
+      setup: {
+        model: LIVE_MODEL,
+        generationConfig: { responseModalities: ['AUDIO'] },
+        systemInstruction: { parts: [{ text: LIVE_SYSTEM_INSTRUCTION }] }
+      }
+    }));
+  });
+
+  upstream.on('message', raw => {
+    let msg;
+    try { msg = JSON.parse(raw.toString()); } catch { return; }
+
+    if (msg.setupComplete) {
+      upstreamReady = true;
+      while (pendingToUpstream.length) upstream.send(pendingToUpstream.shift());
+      try { clientWs.send(JSON.stringify({ type: 'ready' })); } catch {}
+      return;
+    }
+
+    const parts = msg.serverContent?.modelTurn?.parts || [];
+    for (const part of parts) {
+      if (part.inlineData?.data) {
+        try { clientWs.send(JSON.stringify({ type: 'audio', data: part.inlineData.data })); } catch {}
+      }
+    }
+    if (msg.serverContent?.interrupted) {
+      try { clientWs.send(JSON.stringify({ type: 'interrupted' })); } catch {}
+    }
+    if (msg.serverContent?.turnComplete) {
+      try { clientWs.send(JSON.stringify({ type: 'turnComplete' })); } catch {}
+    }
+  });
+
+  upstream.on('error', e => {
+    console.error('[live] upstream error:', e.message);
+    try { clientWs.send(JSON.stringify({ type: 'error', message: 'การเชื่อมต่อกับ AI มีปัญหา' })); } catch {}
+  });
+
+  upstream.on('close', () => {
+    if (!closedByClient) { try { clientWs.close(); } catch {} }
+  });
+
+  // Binary frames from the client = raw 16-bit PCM mic audio (16kHz, mono).
+  // Text frames are small control messages (currently just "stop" — used
+  // when the user taps the orb while the AI is talking, to clear local
+  // playback; nothing needs relaying upstream for that today).
+  clientWs.on('message', (data, isBinary) => {
+    if (isBinary) {
+      const payload = JSON.stringify({
+        realtimeInput: {
+          mediaChunks: [{ mimeType: 'audio/pcm;rate=16000', data: Buffer.from(data).toString('base64') }]
+        }
+      });
+      if (upstreamReady) upstream.send(payload);
+      else pendingToUpstream.push(payload);
+    }
+  });
+
+  clientWs.on('close', () => {
+    closedByClient = true;
+    try { upstream.close(); } catch {}
+  });
+  clientWs.on('error', () => {
+    closedByClient = true;
+    try { upstream.close(); } catch {}
+  });
+});
+
+server.listen(port, () => console.log(`RAM AI is running at http://localhost:${port}`));
