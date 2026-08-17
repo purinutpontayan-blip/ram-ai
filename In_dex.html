@@ -4386,7 +4386,17 @@
         liveWs.onopen = () => { startMicStreaming(); if (liveCamStream) startFrameStreaming(); };
         liveWs.onmessage = handleLiveMessage;
         liveWs.onerror = () => { liveStatus.textContent = 'เกิดข้อผิดพลาดในการเชื่อมต่อ'; };
-        liveWs.onclose = () => { liveStatus.textContent = 'การเชื่อมต่อสิ้นสุดแล้ว'; };
+        liveWs.onclose = () => {
+          // The socket is dead — stop feeding it mic/video data so the UI
+          // doesn't keep looking like an active call while nothing is
+          // actually reaching the AI anymore.
+          stopFrameStreaming();
+          if (liveProcessor) { liveProcessor.onaudioprocess = null; }
+          if (liveWorkletNode) { try { liveWorkletNode.port.onmessage = null; } catch {} }
+          liveSetSpeaking(false);
+          liveStatus.textContent = 'การเชื่อมต่อสิ้นสุดแล้ว';
+          liveHint.textContent = 'แตะปุ่มวางสาย แล้วลองเปิดโหมด LIVE ใหม่อีกครั้งครับ';
+        };
       }
 
       function closeLiveMode() {
