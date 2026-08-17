@@ -540,7 +540,10 @@ liveWss.on('connection', clientWs => {
     }
   });
 
-  // Binary frames from the client = raw 16-bit PCM mic audio (16kHz, mono).
+  // Binary frames from the client = raw 16-bit PCM mic audio (16kHz, mono),
+  // relayed upstream as realtimeInput.audio (Gemini deprecated the old
+  // realtimeInput.mediaChunks field — audio/video/text are now separate
+  // fields, and using mediaChunks gets the session closed with code 1007).
   // Text frames are small JSON control/data messages — currently:
   //   { type: 'video', data: <base64 JPEG>, mimeType: 'image/jpeg' } — a
   //     periodic camera frame, sent right alongside the audio stream so the
@@ -551,7 +554,7 @@ liveWss.on('connection', clientWs => {
     if (isBinary) {
       const payload = JSON.stringify({
         realtimeInput: {
-          mediaChunks: [{ mimeType: 'audio/pcm;rate=16000', data: Buffer.from(data).toString('base64') }]
+          audio: { mimeType: 'audio/pcm;rate=16000', data: Buffer.from(data).toString('base64') }
         }
       });
       if (upstreamReady) upstream.send(payload);
@@ -564,7 +567,7 @@ liveWss.on('connection', clientWs => {
     if (msg.type === 'video' && msg.data) {
       const payload = JSON.stringify({
         realtimeInput: {
-          mediaChunks: [{ mimeType: msg.mimeType || 'image/jpeg', data: msg.data }]
+          video: { mimeType: msg.mimeType || 'image/jpeg', data: msg.data }
         }
       });
       if (upstreamReady) upstream.send(payload);
