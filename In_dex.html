@@ -4130,6 +4130,7 @@
       const liveVideoPlaceholder = document.getElementById('liveVideoPlaceholder');
 
       let liveWs = null;
+      let liveLastCloseInfo = null; // set by an 'upstreamClosed'/'goAway' message just before onclose fires
       let liveMicStream = null;
       let liveAudioCtx = null;   // 16kHz context used to capture + encode mic input
       let liveMicSource = null;
@@ -4335,6 +4336,25 @@
         liveMuteBtn.classList.toggle('muted', muted);
       }
 
+      // Translates the WebSocket close code/reason Gemini actually sent
+      // into something the user can act on, instead of a generic message.
+      // See server.js's 'upstreamClosed' handler for where this comes from.
+      function describeLiveCloseReason(info) {
+        const fallback = 'แตะปุ่มวางสาย แล้วลองเปิดโหมด LIVE ใหม่อีกครั้งครับ';
+        if (!info) return fallback;
+        const reason = (info.reason || '').toLowerCase();
+        if (reason.includes('quota') || info.code === 1008 || reason.includes('resource_exhausted')) {
+          return 'โควตาการใช้งาน Live API หมดชั่วคราว กรุณารอสักครู่แล้วลองใหม่ครับ';
+        }
+        if (reason.includes('deadline') || reason.includes('session') || reason.includes('duration')) {
+          return 'ครบเวลาสูงสุดของการสนทนาต่อครั้งแล้ว แตะปุ่มวางสายแล้วเริ่มใหม่ได้เลยครับ';
+        }
+        if (info.code === 1011) {
+          return 'เซิร์ฟเวอร์ AI มีปัญหาชั่วคราว กรุณาลองใหม่อีกครั้งครับ';
+        }
+        return fallback;
+      }
+
       function handleLiveMessage(ev) {
         if (typeof ev.data !== 'string') return;
         let msg;
@@ -4351,6 +4371,12 @@
           liveSetSpeaking(false);
         } else if (msg.type === 'error') {
           liveStatus.textContent = msg.message || 'เกิดข้อผิดพลาด';
+        } else if (msg.type === 'goAway') {
+          // Gemini warns us shortly before it force-ends the session (max
+          // session duration reached) — let the user know it's expected.
+          liveHint.textContent = `การสนทนาใกล้ครบเวลาสูงสุดแล้ว (เหลือ ${msg.timeLeft}) ระบบจะตัดการเชื่อมต่ออัตโนมัติครับ`;
+        } else if (msg.type === 'upstreamClosed') {
+          liveLastCloseInfo = { code: msg.code, reason: msg.reason };
         }
       }
 
@@ -4362,6 +4388,7 @@
         liveVideoPlaceholder.textContent = 'กำลังเปิดกล้อง...';
         setMuted(false);
         liveFacingMode = 'environment';
+        liveLastCloseInfo = null;
 
         try {
           liveMicStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -4395,7 +4422,7 @@
           if (liveWorkletNode) { try { liveWorkletNode.port.onmessage = null; } catch {} }
           liveSetSpeaking(false);
           liveStatus.textContent = 'การเชื่อมต่อสิ้นสุดแล้ว';
-          liveHint.textContent = 'แตะปุ่มวางสาย แล้วลองเปิดโหมด LIVE ใหม่อีกครั้งครับ';
+          liveHint.textContent = describeLiveCloseReason(liveLastCloseInfo);
         };
       }
 
