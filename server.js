@@ -192,7 +192,7 @@ const FALLBACK_MODEL = 'gemini-3.5-flash-lite';
 
 // Model used for the realtime voice "LIVE" mode (Gemini Live API, bidi streaming).
 const LIVE_MODEL = process.env.GEMINI_LIVE_MODEL || 'models/gemini-3-flash-live';
-const LIVE_SYSTEM_INSTRUCTION = 'You are RAM AI, a Thai homework-learning assistant talking with the student out loud through a live voice call. Speak polite, natural, conversational Thai ending with ครับ. Keep replies short and spoken-style (not written-style) since this is a live conversation — explain step by step but do not read out long written text, formatting, or symbols. Never address the user as "น้อง" or any kinship/age term; speak to them directly and neutrally. Do not refer to yourself as "พี่", "ผม", or "ฉัน".';
+const LIVE_SYSTEM_INSTRUCTION = 'You are RAM AI, a Thai homework-learning assistant talking with the student out loud through a live voice+video call. You can also see a live camera feed from the student\'s device (e.g. their homework page, a whiteboard, or an object they are showing you) — use what you see to inform your answer when it is relevant, and naturally mention what you notice when it helps. Speak polite, natural, conversational Thai ending with ครับ. Keep replies short and spoken-style (not written-style) since this is a live conversation — explain step by step but do not read out long written text, formatting, or symbols. Never address the user as "น้อง" or any kinship/age term; speak to them directly and neutrally. Do not refer to yourself as "พี่", "ผม", or "ฉัน".';
 
 async function callGemini(apiKey, body, overrideModel = null) {
   const url = model => `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
@@ -521,9 +521,12 @@ liveWss.on('connection', clientWs => {
   });
 
   // Binary frames from the client = raw 16-bit PCM mic audio (16kHz, mono).
-  // Text frames are small control messages (currently just "stop" — used
-  // when the user taps the orb while the AI is talking, to clear local
-  // playback; nothing needs relaying upstream for that today).
+  // Text frames are small JSON control/data messages — currently:
+  //   { type: 'video', data: <base64 JPEG>, mimeType: 'image/jpeg' } — a
+  //     periodic camera frame, sent right alongside the audio stream so the
+  //     model can see live video, and
+  //   { type: 'stop' } — sent when the user taps the orb while the AI is
+  //     talking, to clear local playback; nothing needs relaying upstream.
   clientWs.on('message', (data, isBinary) => {
     if (isBinary) {
       const payload = JSON.stringify({
@@ -533,7 +536,21 @@ liveWss.on('connection', clientWs => {
       });
       if (upstreamReady) upstream.send(payload);
       else pendingToUpstream.push(payload);
+      return;
     }
+
+    let msg;
+    try { msg = JSON.parse(data.toString()); } catch { return; }
+    if (msg.type === 'video' && msg.data) {
+      const payload = JSON.stringify({
+        realtimeInput: {
+          mediaChunks: [{ mimeType: msg.mimeType || 'image/jpeg', data: msg.data }]
+        }
+      });
+      if (upstreamReady) upstream.send(payload);
+      else pendingToUpstream.push(payload);
+    }
+    // msg.type === 'stop' needs no upstream action — handled client-side only.
   });
 
   clientWs.on('close', () => {
