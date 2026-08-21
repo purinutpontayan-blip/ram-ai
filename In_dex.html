@@ -913,6 +913,23 @@
       background: #f8fafc;
     }
 
+    .sidebar-ad {
+      flex-shrink: 0;
+      margin-top: 10px;
+      min-height: 100px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .sidebar-ad.hidden {
+      display: none;
+    }
+
     .settings {
       position: absolute;
       bottom: 24px;
@@ -2412,6 +2429,14 @@
       <div class="label">บทสนทนาล่าสุด</div>
       <div class="history" id="history">
         <!-- History buttons will load here -->
+      </div>
+      <div class="sidebar-ad hidden" id="sidebarAd">
+        <ins class="adsbygoogle"
+          style="display:block; width:100%; text-align:center;"
+          data-ad-client="ca-pub-3781978868813160"
+          data-ad-slot="YOUR_AD_SLOT_ID"
+          data-ad-format="auto"
+          data-full-width-responsive="true"></ins>
       </div>
       <button class="settings" id="settings">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -4832,6 +4857,25 @@
         redeemSec.style.display = 'none';
       }
       renderProStatus();
+      updateSidebarAd();
+    }
+
+    // ===== Sidebar Ad (hidden only when BOTH aiPro and codePro are active) =====
+    let sidebarAdLoaded = false;
+    function updateSidebarAd() {
+      const adBox = document.getElementById('sidebarAd');
+      if (!adBox) return;
+      const isFullPro = isProActive('aiPro') && isProActive('codePro');
+      if (isFullPro) {
+        adBox.classList.add('hidden');
+        return;
+      }
+      adBox.classList.remove('hidden');
+      // Only ask AdSense to fill the slot once per page load.
+      if (!sidebarAdLoaded) {
+        sidebarAdLoaded = true;
+        try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch (e) { console.error('AdSense error:', e); }
+      }
     }
 
     function renderProStatus() {
@@ -4941,6 +4985,7 @@
           : `🎉 ปลดล็อก RAM AI PRO และ RAM CODE PRO สำเร็จ! ใช้งานได้ถึง ${expDate}`;
         statusEl.className = 'redeem-status success';
         renderProStatus();
+        updateSidebarAd();
         updateHeaderProLogo(appState.currentAppMode || 'chat');
         updateModelSelectorPro();
       } catch (e) {
