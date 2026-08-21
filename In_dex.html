@@ -5,8 +5,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>RAM AI</title>
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3781978868813160"
-     crossorigin="anonymous"></script>
   <link rel="icon" type="image/png"
     href="https://plain-apac-prod-public.komododecks.com/202608/15/tQ827TTBsqlUklWmLamB/image.png">
   <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -913,23 +911,6 @@
       background: #f8fafc;
     }
 
-    .sidebar-ad {
-      flex-shrink: 0;
-      margin-top: 10px;
-      min-height: 100px;
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      background: #fff;
-      overflow: hidden;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .sidebar-ad.hidden {
-      display: none;
-    }
-
     .settings {
       position: absolute;
       bottom: 24px;
@@ -1701,6 +1682,17 @@
       color: var(--muted);
     }
 
+    /* Divider + tool row inside the AI model dropdown (e.g. "RAM Correcting typos") */
+    .model-dd-divider {
+      height: 1px;
+      background: var(--line);
+      margin: 4px 6px;
+    }
+
+    .model-dd-item-tool .dd-check-wrapper {
+      color: var(--rose);
+    }
+
     .dd-title {
       font-size: 14px;
       font-weight: 500;
@@ -1796,9 +1788,13 @@
       transition: opacity 0.3s ease;
     }
 
+    /* display:none -> display:grid can't be transitioned, so the fade above
+       never actually plays on open — drive the entrance with a keyframe
+       animation instead, which does run correctly on first paint. */
     .modal.open {
       display: grid;
       opacity: 1;
+      animation: modalBackdropFade 0.25s ease-out;
     }
 
     .dialog {
@@ -1813,6 +1809,7 @@
 
     .modal.open .dialog {
       transform: scale(1);
+      animation: modalPop 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
 
     .dialog-head {
@@ -1944,6 +1941,23 @@
       to {
         opacity: 1;
         transform: translateY(0);
+      }
+    }
+
+    @keyframes modalBackdropFade {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes modalPop {
+      from {
+        opacity: 0;
+        transform: scale(0.9) translateY(12px);
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
       }
     }
 
@@ -2430,14 +2444,6 @@
       <div class="history" id="history">
         <!-- History buttons will load here -->
       </div>
-      <div class="sidebar-ad hidden" id="sidebarAd">
-        <ins class="adsbygoogle"
-          style="display:block; width:100%; text-align:center;"
-          data-ad-client="ca-pub-3781978868813160"
-          data-ad-slot="YOUR_AD_SLOT_ID"
-          data-ad-format="auto"
-          data-full-width-responsive="true"></ins>
-      </div>
       <button class="settings" id="settings">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
@@ -2578,6 +2584,34 @@
                   <div class="dd-content">
                     <span class="model-dd-name">RAM AI 4.0</span>
                     <span class="model-dd-desc">ฉลาดที่สุด เหมาะกับโจทย์ยาก</span>
+                  </div>
+                </button>
+
+                <div class="model-dd-divider"></div>
+
+                <!-- Fix Typo tool, now living inside the AI model dropdown instead of its
+                     own toolbar icon. Not a model — no data-model / model-btn-ai class, so
+                     it's skipped by the model-selection logic and just opens its own modal.
+                     TODO: swap this placeholder pencil icon for the final icon later. -->
+                <button type="button" class="model-dd-item model-dd-item-tool" id="fixTypoDropdownItem">
+                  <div class="dd-check-wrapper">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                      stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path
+                        d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72Z">
+                      </path>
+                      <path d="m14 7 3 3"></path>
+                      <path d="M5 6v4"></path>
+                      <path d="M19 14v4"></path>
+                      <path d="M10 2v2"></path>
+                      <path d="M7 8H3"></path>
+                      <path d="M21 16h-4"></path>
+                      <path d="M11 3H9"></path>
+                    </svg>
+                  </div>
+                  <div class="dd-content">
+                    <span class="model-dd-name">RAM Correcting typos</span>
+                    <span class="model-dd-desc">พิมพ์คำผิด แล้วรับคำที่แก้ไขแล้วทันที</span>
                   </div>
                 </button>
               </div>
@@ -2800,6 +2834,37 @@
           </svg>
           โอนย้ายข้อมูล
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fix Typo Modal — standalone tool: type a misspelled word/text, get the
+       corrected text back immediately. No chat history, no model picker. -->
+  <div class="modal" id="fixTypoModal" role="dialog" aria-modal="true" aria-labelledby="fixTypoModalTitle">
+    <div class="dialog" style="width:min(480px,100%); max-height:90vh; overflow-y:auto;">
+      <div class="dialog-head">
+        <h2 id="fixTypoModalTitle">แก้ไขคำผิด</h2>
+        <button class="close" id="closeFixTypoModal" aria-label="ปิด">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-label">พิมพ์คำหรือข้อความที่พิมพ์ผิด</div>
+        <textarea id="fixTypoInput" rows="3" placeholder="เช่น l;ylfu หรือคำไทยที่พิมพ์ผิด..."
+          style="width:100%; resize:vertical; border:1px solid var(--line); border-radius:12px; padding:12px; font:inherit; box-sizing:border-box;"></textarea>
+        <button class="redeem-submit" id="fixTypoSubmitBtn" type="button" style="margin-top:10px; width:100%;">แก้ไขคำผิด</button>
+        <div class="redeem-status" id="fixTypoStatus"></div>
+        <div id="fixTypoResultWrap" style="display:none; margin-top:6px;">
+          <div class="settings-label">ผลลัพธ์</div>
+          <div id="fixTypoResult"
+            style="border:1px solid var(--line); border-radius:12px; padding:12px; background:#f8faf9; white-space:pre-wrap; word-break:break-word;"></div>
+          <button class="settings-action-btn" id="fixTypoCopyBtn" type="button" style="margin-top:10px;">คัดลอกผลลัพธ์</button>
+        </div>
       </div>
     </div>
   </div>
@@ -4778,6 +4843,71 @@
       document.querySelector('[data-mode="receive"]').click();
     };
 
+    // ===== Fix Typo tool (standalone — no chat history, no model picker) =====
+    // Lives inside the AI model dropdown now (as "RAM Correcting typos"),
+    // rather than its own toolbar icon.
+    (() => {
+      const fixTypoModal = document.querySelector('#fixTypoModal');
+      const fixTypoBtn = document.getElementById('fixTypoDropdownItem');
+      const fixTypoInput = document.getElementById('fixTypoInput');
+      const fixTypoSubmitBtn = document.getElementById('fixTypoSubmitBtn');
+      const fixTypoResultWrap = document.getElementById('fixTypoResultWrap');
+      const fixTypoResult = document.getElementById('fixTypoResult');
+      const fixTypoStatus = document.getElementById('fixTypoStatus');
+      const fixTypoCopyBtn = document.getElementById('fixTypoCopyBtn');
+
+      fixTypoBtn.onclick = () => {
+        document.getElementById('modelDropdownMenuAI')?.classList.remove('show');
+        fixTypoModal.classList.add('open');
+        fixTypoResultWrap.style.display = 'none';
+        fixTypoStatus.textContent = '';
+        setTimeout(() => fixTypoInput.focus(), 50);
+      };
+      document.getElementById('closeFixTypoModal').onclick = () => {
+        fixTypoModal.classList.remove('open');
+      };
+      fixTypoModal.onclick = e => {
+        if (e.target === fixTypoModal) fixTypoModal.classList.remove('open');
+      };
+
+      async function submitFixTypo() {
+        const text = fixTypoInput.value.trim();
+        if (!text) { fixTypoStatus.textContent = 'กรุณากรอกข้อความก่อนครับ'; return; }
+        fixTypoStatus.textContent = 'กำลังแก้ไข...';
+        fixTypoSubmitBtn.disabled = true;
+        fixTypoResultWrap.style.display = 'none';
+        try {
+          const res = await fetch(`${API_BASE}/api/fix-typo`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text })
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'เกิดข้อผิดพลาด');
+          fixTypoResult.textContent = data.text;
+          fixTypoResultWrap.style.display = 'block';
+          fixTypoStatus.textContent = '';
+        } catch (e) {
+          fixTypoStatus.textContent = e.message || 'เกิดข้อผิดพลาด ลองใหม่อีกครั้งครับ';
+        } finally {
+          fixTypoSubmitBtn.disabled = false;
+        }
+      }
+
+      fixTypoSubmitBtn.onclick = submitFixTypo;
+      fixTypoInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitFixTypo(); }
+      });
+
+      fixTypoCopyBtn.onclick = () => {
+        navigator.clipboard.writeText(fixTypoResult.textContent).then(() => {
+          const original = fixTypoCopyBtn.textContent;
+          fixTypoCopyBtn.textContent = 'คัดลอกแล้ว!';
+          setTimeout(() => { fixTypoCopyBtn.textContent = original; }, 1500);
+        });
+      };
+    })();
+
     document.querySelector('#closeModal').onclick = () => {
       modal.classList.remove('open');
       if (html5QrcodeScanner) html5QrcodeScanner.clear().catch(e => console.error(e));
@@ -4857,25 +4987,6 @@
         redeemSec.style.display = 'none';
       }
       renderProStatus();
-      updateSidebarAd();
-    }
-
-    // ===== Sidebar Ad (hidden only when BOTH aiPro and codePro are active) =====
-    let sidebarAdLoaded = false;
-    function updateSidebarAd() {
-      const adBox = document.getElementById('sidebarAd');
-      if (!adBox) return;
-      const isFullPro = isProActive('aiPro') && isProActive('codePro');
-      if (isFullPro) {
-        adBox.classList.add('hidden');
-        return;
-      }
-      adBox.classList.remove('hidden');
-      // Only ask AdSense to fill the slot once per page load.
-      if (!sidebarAdLoaded) {
-        sidebarAdLoaded = true;
-        try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch (e) { console.error('AdSense error:', e); }
-      }
     }
 
     function renderProStatus() {
@@ -4985,7 +5096,6 @@
           : `🎉 ปลดล็อก RAM AI PRO และ RAM CODE PRO สำเร็จ! ใช้งานได้ถึง ${expDate}`;
         statusEl.className = 'redeem-status success';
         renderProStatus();
-        updateSidebarAd();
         updateHeaderProLogo(appState.currentAppMode || 'chat');
         updateModelSelectorPro();
       } catch (e) {
