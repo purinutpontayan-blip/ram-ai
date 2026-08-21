@@ -382,7 +382,18 @@ const server = http.createServer(async (req, res) => {
       const input = (text || '').toString().trim().slice(0, 1000);
       if (!input) return send(res, 400, { error: 'กรุณากรอกข้อความ' });
 
-      const fixTypoSystemInstruction = 'You are a text-correction tool, nothing else. The user gives you a single short piece of text that is likely mistyped in one of these ways: (1) Thai words typed while the keyboard language was accidentally left on English, producing garbled Latin-character strings that correspond to Thai letters on the Kedmanee layout (for example "l;ylfu" should become "สวัสดี", "u8k" should become "ทำ"); (2) the reverse case, English typed while the layout was on Thai; or (3) ordinary spelling/typing mistakes in Thai or English. Figure out which case applies and output ONLY the corrected, properly spelled text in its intended language. Do not translate it into another language. Do not add any explanation, label, quotation marks, or punctuation beyond what belongs in the corrected text itself. If the text is already correct, return it unchanged.';
+      // Explicit, verified Kedmanee key map (source: TIS 820-2538 / kbdlayout.info
+      // KBDTH2). Given to the model as a literal lookup table rather than relying
+      // on it to recall the layout from memory — recall alone was misreading
+      // adjacent keys (e.g. unshifted "x" is ป, not ผ, which is unshifted "z").
+      const KEDMANEE_UNSHIFTED = '`=_ 1=ๅ 2=/ 3=- 4=ภ 5=ถ 6=ุ 7=ึ 8=ค 9=ต 0=จ -=ข ==ช q=ๆ w=ไ e=ำ r=พ t=ะ y=ั u=ี i=ร o=น p=ย [=บ ]=ล \\=ฃ a=ฟ s=ห d=ก f=ด g=เ h=้ j=่ k=า l=ส ;=ว \'=ง z=ผ x=ป c=แ v=อ b=ิ n=ื m=ท ,=ม .=ใ /=ฝ';
+      const KEDMANEE_SHIFTED = '~=% !=+ @=๑ #=๒ $=๓ %=๔ ^=ู &=฿ *=๕ (=๖ )=๗ _=๘ +=๙ Q=๐ W=" E=ฎ R=ฑ T=ธ Y=ํ U=๊ I=ณ O=ฯ P=ญ {=ฐ }=, |=ฅ A=ฤ S=ฆ D=ฏ F=โ G=ฌ H=็ J=๋ K=ษ L=ศ :=ซ "=. Z=( X=) C=ฉ V=ฮ B=ฺ N=์ M=? <=ฒ >=ฬ ?=ฦ';
+
+      const fixTypoSystemInstruction = `You are a text-correction tool, nothing else. The user gives you a single short piece of text that is likely mistyped in one of these ways: (1) Thai words typed while the keyboard language was accidentally left on English, producing garbled Latin-character strings — decode these using the EXACT Kedmanee key map below, key by key, rather than recalling the layout from memory (memory alone causes mistakes between visually/positionally similar keys, e.g. unshifted "x" must map to "ป", never to "ผ", which is unshifted "z"); (2) the reverse case, English typed while the layout was on Thai — use the same map in reverse; or (3) ordinary spelling/typing mistakes in Thai or English with no layout confusion involved. Figure out which case applies and output ONLY the corrected, properly spelled text in its intended language. Do not translate it into another language. Do not add any explanation, label, quotation marks, or punctuation beyond what belongs in the corrected text itself. If the text is already correct, return it unchanged.
+
+KEDMANEE UNSHIFTED key=char pairs (space-separated): ${KEDMANEE_UNSHIFTED}
+KEDMANEE SHIFTED key=char pairs (space-separated, i.e. the character typed when Shift is held): ${KEDMANEE_SHIFTED}
+Example: "l;ylfu" decodes key-by-key as l=ส ;=ว y=ั l=ส f=ด u=ี → "สวัสดี". Apply the same literal, key-by-key process to the user's input.`;
 
       const fixTypoBody = {
         systemInstruction: { parts: [{ text: fixTypoSystemInstruction }] },
