@@ -240,6 +240,11 @@ const server = http.createServer(async (req, res) => {
   }
   if (req.method === 'GET' && req.url === '/') return fs.createReadStream(path.join(root, 'In_dex.html')).pipe(res);
 
+  if (req.method === 'GET' && req.url === '/ads.txt') {
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+    return fs.createReadStream(path.join(root, 'ads.txt')).pipe(res);
+  }
+
   if (req.method === 'GET' && req.url === '/api/config') {
     return send(res, 200, { googleClientId: GOOGLE_CLIENT_ID });
   }
