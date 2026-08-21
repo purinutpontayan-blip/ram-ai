@@ -240,11 +240,6 @@ const server = http.createServer(async (req, res) => {
   }
   if (req.method === 'GET' && req.url === '/') return fs.createReadStream(path.join(root, 'In_dex.html')).pipe(res);
 
-  if (req.method === 'GET' && req.url === '/ads.txt') {
-    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
-    return fs.createReadStream(path.join(root, 'ads.txt')).pipe(res);
-  }
-
   if (req.method === 'GET' && req.url === '/api/config') {
     return send(res, 200, { googleClientId: GOOGLE_CLIENT_ID });
   }
@@ -369,6 +364,34 @@ const server = http.createServer(async (req, res) => {
       let title = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 'แชตใหม่';
       title = title.replace(/[\*\#\"\'`\[\]]/g, '').trim();
       return send(res, 200, { title });
+    } catch (e) { return send(res, 500, { error: e.message }); }
+  }
+
+  // ===== FIX TYPO (standalone tool) =====
+  // Stateless: no chat history, no model picker — just corrects whatever text
+  // the user pastes in, including Thai typed on a stuck-English keyboard
+  // layout (e.g. "l;ylfu" -> "สวัสดี") and ordinary Thai/English typos.
+  if (req.method === 'POST' && req.url === '/api/fix-typo') {
+    if (!process.env.GEMINI_API_KEY) return send(res, 500, { error: 'ยังไม่ได้ตั้งค่า GEMINI_API_KEY' });
+    let rawBody = ''; for await (const chunk of req) rawBody += chunk;
+    try {
+      const { text } = JSON.parse(rawBody);
+      const input = (text || '').toString().trim().slice(0, 1000);
+      if (!input) return send(res, 400, { error: 'กรุณากรอกข้อความ' });
+
+      const fixTypoSystemInstruction = 'You are a text-correction tool, nothing else. The user gives you a single short piece of text that is likely mistyped in one of these ways: (1) Thai words typed while the keyboard language was accidentally left on English, producing garbled Latin-character strings that correspond to Thai letters on the Kedmanee layout (for example "l;ylfu" should become "สวัสดี", "u8k" should become "ทำ"); (2) the reverse case, English typed while the layout was on Thai; or (3) ordinary spelling/typing mistakes in Thai or English. Figure out which case applies and output ONLY the corrected, properly spelled text in its intended language. Do not translate it into another language. Do not add any explanation, label, quotation marks, or punctuation beyond what belongs in the corrected text itself. If the text is already correct, return it unchanged.';
+
+      const fixTypoBody = {
+        systemInstruction: { parts: [{ text: fixTypoSystemInstruction }] },
+        contents: [{ role: 'user', parts: [{ text: input }] }]
+      };
+      const response = await callGemini(process.env.GEMINI_API_KEY, fixTypoBody, FALLBACK_MODEL);
+      if (response.status === 429) return send(res, 429, { error: 'กำลังรอรีเซ็ต...' });
+      const data = await response.json();
+      if (!response.ok) return send(res, response.status, { error: data.error?.message || 'Gemini API error' });
+      let corrected = data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('').trim() || '';
+      corrected = corrected.replace(/^["'“”]+|["'“”]+$/g, '').trim();
+      return send(res, 200, { text: corrected || input });
     } catch (e) { return send(res, 500, { error: e.message }); }
   }
 
